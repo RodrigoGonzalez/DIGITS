@@ -46,7 +46,11 @@ def get_extension(extension_id):
     """
     return extension associated with specified extension_id
     """
-    for extension in get_extensions():
-        if extension.get_id() == extension_id:
-            return extension
-    return None
+    return next(
+        (
+            extension
+            for extension in get_extensions()
+            if extension.get_id() == extension_id
+        ),
+        None,
+    )

@@ -43,7 +43,9 @@ class AnalyzeDbTask(Task):
         self.image_height = None
         self.image_channels = None
 
-        self.analyze_db_log_file = 'analyze_db_%s.log' % '-'.join(p.lower() for p in self.purpose.split())
+        self.analyze_db_log_file = (
+            f"analyze_db_{'-'.join(p.lower() for p in self.purpose.split())}.log"
+        )
 
     def __getstate__(self):
         state = super(AnalyzeDbTask, self).__getstate__()
@@ -58,21 +60,25 @@ class AnalyzeDbTask(Task):
 
     @override
     def name(self):
-        return 'Analyze DB (%s)' % (self.purpose)
+        return f'Analyze DB ({self.purpose})'
 
     @override
     def html_id(self):
-        return 'task-analyze-db-%s' % '-'.join(p.lower() for p in self.purpose.split())
+        return f"task-analyze-db-{'-'.join(p.lower() for p in self.purpose.split())}"
 
     @override
     def offer_resources(self, resources):
         key = 'analyze_db_task_pool'
         if key not in resources:
             return None
-        for resource in resources[key]:
-            if resource.remaining() >= 1:
-                return {key: [(resource.identifier, 1)]}
-        return None
+        return next(
+            (
+                {key: [(resource.identifier, 1)]}
+                for resource in resources[key]
+                if resource.remaining() >= 1
+            ),
+            None,
+        )
 
     @override
     def task_arguments(self, resources, env):
@@ -102,35 +108,31 @@ class AnalyzeDbTask(Task):
         if not message:
             return False
 
-        # progress
-        match = re.match(r'Progress: (\d+)\/(\d+)', message)
-        if match:
+        if match := re.match(r'Progress: (\d+)\/(\d+)', message):
             self.progress = float(match.group(1)) / float(match.group(2))
             self.emit_progress_update()
             return True
 
-        # total count
-        match = re.match(r'Total entries: (\d+)', message)
-        if match:
+        if match := re.match(r'Total entries: (\d+)', message):
             self.image_count = int(match.group(1))
             return True
 
-        # image dimensions
-        match = re.match(r'(\d+) entries found with shape ((\d+)x(\d+)x(\d+))', message)
-        if match:
+        if match := re.match(
+            r'(\d+) entries found with shape ((\d+)x(\d+)x(\d+))', message
+        ):
             # count = int(match.group(1))
             dims = match.group(2)
             self.image_width = int(match.group(3))
             self.image_height = int(match.group(4))
             self.image_channels = int(match.group(5))
-            self.logger.debug('Images are %s' % dims)
+            self.logger.debug(f'Images are {dims}')
             return True
 
         if level == 'warning':
-            self.logger.warning('%s: %s' % (self.name(), message))
+            self.logger.warning(f'{self.name()}: {message}')
             return True
         if level in ['error', 'critical']:
-            self.logger.error('%s: %s' % (self.name(), message))
+            self.logger.error(f'{self.name()}: {message}')
             self.exception = message
             return True
 
@@ -152,4 +154,4 @@ class AnalyzeDbTask(Task):
         elif self.image_channels == 3:
             return 'COLOR'
         else:
-            return '%s-channel' % self.image_channels
+            return f'{self.image_channels}-channel'

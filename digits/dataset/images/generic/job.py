@@ -34,10 +34,14 @@ class GenericImageDatasetJob(ImageDatasetJob):
             s = 'val'
         else:
             return None
-        for t in self.tasks:
-            if isinstance(t, tasks.AnalyzeDbTask) and s in t.name().lower():
-                return t
-        return None
+        return next(
+            (
+                t
+                for t in self.tasks
+                if isinstance(t, tasks.AnalyzeDbTask) and s in t.name().lower()
+            ),
+            None,
+        )
 
     def analyze_db_tasks(self):
         """
@@ -73,7 +77,7 @@ class GenericImageDatasetJob(ImageDatasetJob):
         else:
             return None
         for task in self.tasks:
-            if task.purpose == '%s Images' % s:
+            if task.purpose == f'{s} Images':
                 db = task
         return self.path(db.database) if db else None
 
@@ -98,7 +102,7 @@ class GenericImageDatasetJob(ImageDatasetJob):
         else:
             return None
         for task in self.tasks:
-            if task.purpose == '%s Labels' % s:
+            if task.purpose == f'{s} Labels':
                 db = task
         return self.path(db.database) if db else None
 

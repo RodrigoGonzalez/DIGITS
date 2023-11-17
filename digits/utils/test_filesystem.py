@@ -43,14 +43,13 @@ class TestTreeSize():
         try:
             dir = tempfile.mkdtemp()
             total_size = 0
-            for i in range(n_files):
+            for _ in range(n_files):
                 # create file with random size of up to 1MB
                 size = random.randint(1, 2**20)
                 fd, name = tempfile.mkstemp(dir=dir)
-                f = open(name, "w")
-                f.seek(size - 1)
-                f.write("\0")
-                f.close()
+                with open(name, "w") as f:
+                    f.seek(size - 1)
+                    f.write("\0")
                 os.close(fd)
                 total_size += size
             tree_size = fs.get_tree_size(dir)

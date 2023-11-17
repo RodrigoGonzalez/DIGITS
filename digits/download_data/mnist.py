@@ -56,7 +56,7 @@ class MnistDownloader(DataDownloader):
         with open(os.path.join(output_dir, 'labels.txt'), 'w') as outfile:
             for label in xrange(10):
                 outfile.write('%s\n' % label)
-        with open(os.path.join(output_dir, '%s.txt' % phase), 'w') as outfile:
+        with open(os.path.join(output_dir, f'{phase}.txt'), 'w') as outfile:
             for index, image in enumerate(images):
                 dirname = os.path.join(output_dir, labels[index])
                 self.mkdir(dirname)

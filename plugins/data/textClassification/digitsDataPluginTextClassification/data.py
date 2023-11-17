@@ -27,10 +27,7 @@ class DataIngestion(DataIngestionInterface):
 
         self.userdata['is_inference_db'] = is_inference_db
 
-        # create character dict
-        self.userdata['cdict'] = {}
-        for i, c in enumerate(self.alphabet):
-            self.userdata['cdict'][c] = i + 1  # indices start at 1
+        self.userdata['cdict'] = {c: i + 1 for i, c in enumerate(self.alphabet)}
         # assign unknown characters to the same next available ID
         self.userdata['unknown_char_id'] = len(self.alphabet) + 1
 
@@ -48,15 +45,15 @@ class DataIngestion(DataIngestionInterface):
         max_chars = self.max_chars_per_sample
         for field in entry['fields']:
             for char in field.lower():
-                if max_chars and count < self.max_chars_per_sample:
-                    if char in self.userdata['cdict']:
-                        num = self.userdata['cdict'][char]
-                    else:
-                        num = self.userdata['unknown_char_id']
-                    sample.append(num)
-                    count += 1
-                else:
+                if not max_chars or count >= self.max_chars_per_sample:
                     break
+                num = (
+                    self.userdata['cdict'][char]
+                    if char in self.userdata['cdict']
+                    else self.userdata['unknown_char_id']
+                )
+                sample.append(num)
+                count += 1
         # convert to numpy array
         sample = np.array(sample, dtype='uint8')
         # pad if necessary
@@ -123,17 +120,7 @@ class DataIngestion(DataIngestionInterface):
 
     @override
     def itemize_entries(self, stage):
-        if not self.userdata['is_inference_db']:
-            if stage == constants.TRAIN_DB:
-                entries = self.read_csv(self.train_data_file)
-            elif stage == constants.VAL_DB:
-                if self.val_data_file:
-                    entries = self.read_csv(self.val_data_file)
-                else:
-                    entries = []
-            else:
-                entries = []
-        else:
+        if self.userdata['is_inference_db']:
             if stage == constants.TEST_DB:
                 if not (bool(self.test_data_file) ^ bool(self.snippet)):
                     raise ValueError("You must provide either a data file or a snippet")
@@ -143,13 +130,26 @@ class DataIngestion(DataIngestionInterface):
                     entries = [{'class': '0', 'fields': [self.snippet]}]
             else:
                 entries = []
+        elif (
+            stage != constants.TRAIN_DB
+            and stage == constants.VAL_DB
+            and self.val_data_file
+        ):
+            entries = self.read_csv(self.val_data_file)
+        elif (
+            stage != constants.TRAIN_DB
+            and stage == constants.VAL_DB
+            or stage != constants.TRAIN_DB
+        ):
+            entries = []
+        else:
+            entries = self.read_csv(self.train_data_file)
         return entries
 
     def read_csv(self, filename, shuffle=True):
         entries = []
         with open(filename) as f:
             reader = csv.DictReader(f, fieldnames=['class'], restkey='fields')
-            for row in reader:
-                entries.append(row)
+            entries.extend(iter(reader))
         random.shuffle(entries)
         return entries

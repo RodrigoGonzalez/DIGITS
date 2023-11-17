@@ -43,7 +43,7 @@ class Visualization(VisualizationInterface):
         # view options
         if kwargs['colormap'] == 'dataset':
             if COLOR_PALETTE_ATTRIBUTE not in dataset.extension_userdata or \
-                    not dataset.extension_userdata[COLOR_PALETTE_ATTRIBUTE]:
+                        not dataset.extension_userdata[COLOR_PALETTE_ATTRIBUTE]:
                 raise ValueError("No palette found in dataset - choose other colormap")
             palette = dataset.extension_userdata[COLOR_PALETTE_ATTRIBUTE]
             # assume 8-bit RGB palette and convert to N*3 numpy array
@@ -59,7 +59,7 @@ class Visualization(VisualizationInterface):
         elif kwargs['colormap'] == 'none':
             self.map = None
         else:
-            raise ValueError("Unknown color map option: %s" % kwargs['colormap'])
+            raise ValueError(f"Unknown color map option: {kwargs['colormap']}")
 
         # memorize class labels
         if 'class_labels' in dataset.extension_userdata:
@@ -109,13 +109,9 @@ class Visualization(VisualizationInterface):
             else:
                 # make a grey scale hex color
                 h = hex(int(c)).split('x')[1].zfill(2)
-                hex_color = '#%s%s%s' % (h, h, h)
+                hex_color = f'#{h}{h}{h}'
 
-            if self.class_labels:
-                text = self.class_labels[int(c)]
-            else:
-                text = "Class #%d" % c
-
+            text = self.class_labels[int(c)] if self.class_labels else "Class #%d" % c
             legend.append({'index': c, 'text': text, 'hex_color': hex_color})
         return legend
 

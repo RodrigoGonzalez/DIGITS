@@ -11,7 +11,7 @@ import platform
 from random import uniform
 from urlparse import urlparse
 
-if not platform.system() == 'Windows':
+if platform.system() != 'Windows':
     import fcntl
 else:
     import gevent.os
@@ -38,7 +38,7 @@ def nonblocking_readlines(f):
        Newlines are normalized to the Unix standard.
     """
     fd = f.fileno()
-    if not platform.system() == 'Windows':
+    if platform.system() != 'Windows':
         fl = fcntl.fcntl(fd, fcntl.F_GETFL)
         fcntl.fcntl(fd, fcntl.F_SETFL, fl | os.O_NONBLOCK)
     enc = locale.getpreferredencoding(False)
@@ -46,11 +46,11 @@ def nonblocking_readlines(f):
     buf = bytearray()
     while True:
         try:
-            if not platform.system() == 'Windows':
+            if platform.system() != 'Windows':
                 block = os.read(fd, 8192)
             else:
                 block = gevent.os.tp_read(fd, 8192)
-        except (BlockingIOError, OSError):
+        except OSError:
             yield ""
             continue
 
@@ -72,10 +72,7 @@ def nonblocking_readlines(f):
                 buf = buf[(n + 1):]
             elif n == -1 or n > r:
                 yield buf[:r].decode(enc) + '\n'
-                if n == r + 1:
-                    buf = buf[(r + 2):]
-                else:
-                    buf = buf[(r + 1):]
+                buf = buf[(r + 2):] if n == r + 1 else buf[(r + 1):]
 
 
 def subclass(cls):
@@ -93,7 +90,7 @@ def subclass(cls):
                         method.__doc__ = base_class.__dict__[name].__doc__
                     found = True
                     break
-            assert found, '"%s.%s" not found in any base class' % (cls.__name__, name)
+            assert found, f'"{cls.__name__}.{name}" not found in any base class'
     return cls
 
 
@@ -118,7 +115,7 @@ def sizeof_fmt(size, suffix='B'):
     except ValueError:
         return None
     if size <= 0:
-        return '0 %s' % suffix
+        return f'0 {suffix}'
 
     size_name = ('', 'K', 'M', 'G', 'T', 'P', 'E', 'Z', 'Y')
     i = int(math.floor(math.log(size, 1024)))
@@ -130,10 +127,7 @@ def sizeof_fmt(size, suffix='B'):
     s = round(s, 2 - int(math.floor(math.log10(s))))
     if s.is_integer():
         s = int(s)
-    if s > 0:
-        return '%s %s%s' % (s, size_name[i], suffix)
-    else:
-        return '0 %s' % suffix
+    return f'{s} {size_name[i]}{suffix}' if s > 0 else f'0 {suffix}'
 
 
 def parse_version(*args):
@@ -146,16 +140,11 @@ def parse_version(*args):
     v = None
     if len(args) == 1:
         a = args[0]
-        if isinstance(a, tuple):
-            v = '.'.join(str(x) for x in a)
-        else:
-            v = str(a)
+        v = '.'.join(str(x) for x in a) if isinstance(a, tuple) else str(a)
     else:
         v = '.'.join(str(a) for a in args)
 
-    if v.startswith('v'):
-        v = v[1:]
-
+    v = v.removeprefix('v')
     try:
         return pkg_resources.SetuptoolsVersion(v)
     except AttributeError:

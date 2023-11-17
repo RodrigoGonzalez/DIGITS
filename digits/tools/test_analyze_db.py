@@ -28,10 +28,7 @@ class BaseTestWithDB(object):
         cls._data_dir = tempfile.mkdtemp()
         cls.db = lmdb.open(os.path.join(cls._data_dir, 'db'))
         for i in xrange(2):
-            if cls.SAME_SHAPE:
-                width = 10
-            else:
-                width = 10 + i
+            width = 10 if cls.SAME_SHAPE else 10 + i
             datum = cls.create_datum(10, width, 3)
             with cls.db.begin(write=True) as txn:
                 txn.put(str(i), datum.SerializeToString())

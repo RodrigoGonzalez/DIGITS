@@ -271,16 +271,17 @@ class BaseTestViews(BaseViewsTest):
 
     def test_page_model_new(self):
         rv = self.app.get('/models/images/classification/new')
-        assert rv.status_code == 200, 'page load failed with %s' % rv.status_code
+        assert rv.status_code == 200, f'page load failed with {rv.status_code}'
         assert 'New Image Classification Model' in rv.data, 'unexpected page format'
 
     def test_nonexistent_model(self):
         assert not self.model_exists('foo'), "model shouldn't exist"
 
     def test_visualize_network(self):
-        rv = self.app.post('/models/visualize-network?framework=' + self.FRAMEWORK,
-                           data={'custom_network': self.network()}
-                           )
+        rv = self.app.post(
+            f'/models/visualize-network?framework={self.FRAMEWORK}',
+            data={'custom_network': self.network()},
+        )
         s = BeautifulSoup(rv.data, 'html.parser')
         if rv.status_code != 200:
             body = s.select('body')[0]
@@ -291,7 +292,9 @@ class BaseTestViews(BaseViewsTest):
         assert image is not None, "didn't return an image"
 
     def test_customize(self):
-        rv = self.app.post('/models/customize?network=lenet&framework=' + self.FRAMEWORK)
+        rv = self.app.post(
+            f'/models/customize?network=lenet&framework={self.FRAMEWORK}'
+        )
         s = BeautifulSoup(rv.data, 'html.parser')
         body = s.select('body')
         assert rv.status_code == 200, 'POST failed with %s\n\n%s' % (rv.status_code, body)
@@ -326,16 +329,16 @@ class BaseTestCreation(BaseViewsTestWithDataset):
     def test_snapshot_interval_2(self):
         job_id = self.create_model(snapshot_interval=0.5)
         assert self.model_wait_completion(job_id) == 'Done', 'create failed'
-        rv = self.app.get('/models/%s.json' % job_id)
-        assert rv.status_code == 200, 'json load failed with %s' % rv.status_code
+        rv = self.app.get(f'/models/{job_id}.json')
+        assert rv.status_code == 200, f'json load failed with {rv.status_code}'
         content = json.loads(rv.data)
         assert len(content['snapshots']) > 1, 'should take >1 snapshot'
 
     def test_snapshot_interval_0_5(self):
         job_id = self.create_model(train_epochs=4, snapshot_interval=2)
         assert self.model_wait_completion(job_id) == 'Done', 'create failed'
-        rv = self.app.get('/models/%s.json' % job_id)
-        assert rv.status_code == 200, 'json load failed with %s' % rv.status_code
+        rv = self.app.get(f'/models/{job_id}.json')
+        assert rv.status_code == 200, f'json load failed with {rv.status_code}'
         content = json.loads(rv.data)
         assert len(content['snapshots']) == 2, 'should take 2 snapshots'
 
@@ -386,10 +389,10 @@ class BaseTestCreation(BaseViewsTestWithDataset):
                 image_upload = (StringIO(infile.read()), 'image.png')
 
             rv = self.app.post(
-                '/models/images/classification/classify_one?job_id=%s' % job_id,
+                f'/models/images/classification/classify_one?job_id={job_id}',
                 data={
                     'image_file': image_upload,
-                }
+                },
             )
             s = BeautifulSoup(rv.data, 'html.parser')
             body = s.select('body')
@@ -420,17 +423,16 @@ class BaseTestCreation(BaseViewsTestWithDataset):
     def test_retrain(self):
         job1_id = self.create_model()
         assert self.model_wait_completion(job1_id) == 'Done', 'first job failed'
-        rv = self.app.get('/models/%s.json' % job1_id)
-        assert rv.status_code == 200, 'json load failed with %s' % rv.status_code
+        rv = self.app.get(f'/models/{job1_id}.json')
+        assert rv.status_code == 200, f'json load failed with {rv.status_code}'
         content = json.loads(rv.data)
         assert len(content['snapshots']), 'should have at least snapshot'
 
         options = {
             'method': 'previous',
             'previous_networks': job1_id,
+            f'{job1_id}-snapshot': content['snapshots'][-1],
         }
-        options['%s-snapshot' % job1_id] = content['snapshots'][-1]
-
         job2_id = self.create_model(**options)
         assert self.model_wait_completion(job2_id) == 'Done', 'second job failed'
 
@@ -438,22 +440,22 @@ class BaseTestCreation(BaseViewsTestWithDataset):
         # retrain from a job which already had a pretrained model
         job1_id = self.create_model()
         assert self.model_wait_completion(job1_id) == 'Done', 'first job failed'
-        rv = self.app.get('/models/%s.json' % job1_id)
-        assert rv.status_code == 200, 'json load failed with %s' % rv.status_code
+        rv = self.app.get(f'/models/{job1_id}.json')
+        assert rv.status_code == 200, f'json load failed with {rv.status_code}'
         content = json.loads(rv.data)
         assert len(content['snapshots']), 'should have at least snapshot'
         options_2 = {
             'method': 'previous',
             'previous_networks': job1_id,
+            f'{job1_id}-snapshot': content['snapshots'][-1],
         }
-        options_2['%s-snapshot' % job1_id] = content['snapshots'][-1]
         job2_id = self.create_model(**options_2)
         assert self.model_wait_completion(job2_id) == 'Done', 'second job failed'
         options_3 = {
             'method': 'previous',
             'previous_networks': job2_id,
+            f'{job2_id}-snapshot': -1,
         }
-        options_3['%s-snapshot' % job2_id] = -1
         job3_id = self.create_model(**options_3)
         assert self.model_wait_completion(job3_id) == 'Done', 'third job failed'
 
@@ -519,8 +521,8 @@ class BaseTestCreation(BaseViewsTestWithDataset):
 
         job1_id = self.create_model(**options_1)
         assert self.model_wait_completion(job1_id) == 'Done', 'first job failed'
-        rv = self.app.get('/models/%s.json' % job1_id)
-        assert rv.status_code == 200, 'json load failed with %s' % rv.status_code
+        rv = self.app.get(f'/models/{job1_id}.json')
+        assert rv.status_code == 200, f'json load failed with {rv.status_code}'
         content1 = json.loads(rv.data)
 
         # Clone job1 as job2
@@ -530,8 +532,8 @@ class BaseTestCreation(BaseViewsTestWithDataset):
 
         job2_id = self.create_model(**options_2)
         assert self.model_wait_completion(job2_id) == 'Done', 'second job failed'
-        rv = self.app.get('/models/%s.json' % job2_id)
-        assert rv.status_code == 200, 'json load failed with %s' % rv.status_code
+        rv = self.app.get(f'/models/{job2_id}.json')
+        assert rv.status_code == 200, f'json load failed with {rv.status_code}'
         content2 = json.loads(rv.data)
 
         # These will be different
@@ -574,28 +576,25 @@ class BaseTestCreated(BaseViewsTestWithModel):
             yield self.check_download, extension
 
     def check_download(self, extension):
-        url = '/models/%s/download.%s' % (self.model_id, extension)
+        url = f'/models/{self.model_id}/download.{extension}'
         rv = self.app.get(url)
-        assert rv.status_code == 200, 'download "%s" failed with %s' % (url, rv.status_code)
+        assert rv.status_code == 200, f'download "{url}" failed with {rv.status_code}'
 
     def test_index_json(self):
         rv = self.app.get('/index.json')
-        assert rv.status_code == 200, 'page load failed with %s' % rv.status_code
+        assert rv.status_code == 200, f'page load failed with {rv.status_code}'
         content = json.loads(rv.data)
-        found = False
-        for m in content['models']:
-            if m['id'] == self.model_id:
-                found = True
-                break
+        found = any(m['id'] == self.model_id for m in content['models'])
         assert found, 'model not found in list'
 
     def test_model_json(self):
-        rv = self.app.get('/models/%s.json' % self.model_id)
-        assert rv.status_code == 200, 'page load failed with %s' % rv.status_code
+        rv = self.app.get(f'/models/{self.model_id}.json')
+        assert rv.status_code == 200, f'page load failed with {rv.status_code}'
         content = json.loads(rv.data)
-        assert content['id'] == self.model_id, 'id %s != %s' % (content['id'], self.model_id)
-        assert content['dataset_id'] == self.dataset_id, 'dataset_id %s != %s' % (
-            content['dataset_id'], self.dataset_id)
+        assert content['id'] == self.model_id, f"id {content['id']} != {self.model_id}"
+        assert (
+            content['dataset_id'] == self.dataset_id
+        ), f"dataset_id {content['dataset_id']} != {self.dataset_id}"
         assert len(content['snapshots']) > 0, 'no snapshots in list'
 
     def test_edit_name(self):
@@ -603,14 +602,14 @@ class BaseTestCreated(BaseViewsTestWithModel):
             self.dataset_id,
             name='new name'
         )
-        assert status == 200, 'failed with %s' % status
+        assert status == 200, f'failed with {status}'
 
     def test_edit_notes(self):
         status = self.edit_job(
             self.dataset_id,
             notes='new notes'
         )
-        assert status == 200, 'failed with %s' % status
+        assert status == 200, f'failed with {status}'
 
     def test_classify_one(self):
         # test first image in first category
@@ -622,11 +621,11 @@ class BaseTestCreated(BaseViewsTestWithModel):
             image_upload = (StringIO(infile.read()), 'image.png')
 
         rv = self.app.post(
-            '/models/images/classification/classify_one?job_id=%s' % self.model_id,
+            f'/models/images/classification/classify_one?job_id={self.model_id}',
             data={
                 'image_file': image_upload,
                 'show_visualizations': 'y',
-            }
+            },
         )
         s = BeautifulSoup(rv.data, 'html.parser')
         body = s.select('body')
@@ -645,32 +644,29 @@ class BaseTestCreated(BaseViewsTestWithModel):
             image_upload = (StringIO(infile.read()), 'image.png')
 
         rv = self.app.post(
-            '/models/images/classification/classify_one.json?job_id=%s' % self.model_id,
+            f'/models/images/classification/classify_one.json?job_id={self.model_id}',
             data={
                 'image_file': image_upload,
                 'show_visualizations': 'y',
-            }
+            },
         )
-        assert rv.status_code == 200, 'POST failed with %s' % rv.status_code
+        assert rv.status_code == 200, f'POST failed with {rv.status_code}'
         data = json.loads(rv.data)
         assert data['predictions'][0][0] == category, 'image misclassified'
 
     def test_classify_many(self):
         textfile_images = ''
-        label_id = 0
-        for label, images in self.imageset_paths.iteritems():
+        for label_id, (label, images) in enumerate(self.imageset_paths.iteritems()):
             for image in images:
                 image_path = image
                 image_path = os.path.join(self.imageset_folder, image_path)
                 textfile_images += '%s %d\n' % (image_path, label_id)
-            label_id += 1
-
         # StringIO wrapping is needed to simulate POST file upload.
         file_upload = (StringIO(textfile_images), 'images.txt')
 
         rv = self.app.post(
-            '/models/images/classification/classify_many?job_id=%s' % self.model_id,
-            data={'image_list': file_upload}
+            f'/models/images/classification/classify_many?job_id={self.model_id}',
+            data={'image_list': file_upload},
         )
         s = BeautifulSoup(rv.data, 'html.parser')
         body = s.select('body')
@@ -678,19 +674,16 @@ class BaseTestCreated(BaseViewsTestWithModel):
 
     def test_classify_many_from_folder(self):
         textfile_images = ''
-        label_id = 0
-        for label, images in self.imageset_paths.iteritems():
+        for label_id, (label, images) in enumerate(self.imageset_paths.iteritems()):
             for image in images:
                 image_path = image
                 textfile_images += '%s %d\n' % (image_path, label_id)
-            label_id += 1
-
         # StringIO wrapping is needed to simulate POST file upload.
         file_upload = (StringIO(textfile_images), 'images.txt')
 
         rv = self.app.post(
-            '/models/images/classification/classify_many?job_id=%s' % self.model_id,
-            data={'image_list': file_upload, 'image_folder': self.imageset_folder}
+            f'/models/images/classification/classify_many?job_id={self.model_id}',
+            data={'image_list': file_upload, 'image_folder': self.imageset_folder},
         )
 
         s = BeautifulSoup(rv.data, 'html.parser')
@@ -699,21 +692,18 @@ class BaseTestCreated(BaseViewsTestWithModel):
 
     def test_classify_many_invalid_ground_truth(self):
         textfile_images = ''
-        label_id = 0
-        for label, images in self.imageset_paths.iteritems():
+        for label_id, (label, images) in enumerate(self.imageset_paths.iteritems()):
             for image in images:
                 image_path = image
                 image_path = os.path.join(self.imageset_folder, image_path)
                 # test label_id with -1 and >len(labels)
                 textfile_images += '%s %s\n' % (image_path, 3 * label_id - 1)
-            label_id += 1
-
         # StringIO wrapping is needed to simulate POST file upload.
         file_upload = (StringIO(textfile_images), 'images.txt')
 
         rv = self.app.post(
-            '/models/images/classification/classify_many?job_id=%s' % self.model_id,
-            data={'image_list': file_upload}
+            f'/models/images/classification/classify_many?job_id={self.model_id}',
+            data={'image_list': file_upload},
         )
         s = BeautifulSoup(rv.data, 'html.parser')
         body = s.select('body')
@@ -721,22 +711,19 @@ class BaseTestCreated(BaseViewsTestWithModel):
 
     def test_classify_many_json(self):
         textfile_images = ''
-        label_id = 0
-        for label, images in self.imageset_paths.iteritems():
+        for label_id, (label, images) in enumerate(self.imageset_paths.iteritems()):
             for image in images:
                 image_path = image
                 image_path = os.path.join(self.imageset_folder, image_path)
                 textfile_images += '%s %d\n' % (image_path, label_id)
-            label_id += 1
-
         # StringIO wrapping is needed to simulate POST file upload.
         file_upload = (StringIO(textfile_images), 'images.txt')
 
         rv = self.app.post(
-            '/models/images/classification/classify_many.json?job_id=%s' % self.model_id,
-            data={'image_list': file_upload}
+            f'/models/images/classification/classify_many.json?job_id={self.model_id}',
+            data={'image_list': file_upload},
         )
-        assert rv.status_code == 200, 'POST failed with %s' % rv.status_code
+        assert rv.status_code == 200, f'POST failed with {rv.status_code}'
         data = json.loads(rv.data)
         assert 'classifications' in data, 'invalid response'
         # verify classification of first image in each category
@@ -744,24 +731,23 @@ class BaseTestCreated(BaseViewsTestWithModel):
             image_path = self.imageset_paths[category][0]
             image_path = os.path.join(self.imageset_folder, image_path)
             prediction = data['classifications'][image_path][0][0]
-            assert prediction == category, 'image misclassified- predicted %s - expected %s' % (prediction, category)
+            assert (
+                prediction == category
+            ), f'image misclassified- predicted {prediction} - expected {category}'
 
     def test_top_n(self):
         textfile_images = ''
-        label_id = 0
-        for label, images in self.imageset_paths.iteritems():
+        for label_id, (label, images) in enumerate(self.imageset_paths.iteritems()):
             for image in images:
                 image_path = image
                 image_path = os.path.join(self.imageset_folder, image_path)
                 textfile_images += '%s %d\n' % (image_path, label_id)
-            label_id += 1
-
         # StringIO wrapping is needed to simulate POST file upload.
         file_upload = (StringIO(textfile_images), 'images.txt')
 
         rv = self.app.post(
-            '/models/images/classification/top_n?job_id=%s' % self.model_id,
-            data={'image_list': file_upload}
+            f'/models/images/classification/top_n?job_id={self.model_id}',
+            data={'image_list': file_upload},
         )
         s = BeautifulSoup(rv.data, 'html.parser')
         body = s.select('body')
@@ -772,19 +758,16 @@ class BaseTestCreated(BaseViewsTestWithModel):
 
     def test_top_n_from_folder(self):
         textfile_images = ''
-        label_id = 0
-        for label, images in self.imageset_paths.iteritems():
+        for label_id, (label, images) in enumerate(self.imageset_paths.iteritems()):
             for image in images:
                 image_path = image
                 textfile_images += '%s %d\n' % (image_path, label_id)
-            label_id += 1
-
         # StringIO wrapping is needed to simulate POST file upload.
         file_upload = (StringIO(textfile_images), 'images.txt')
 
         rv = self.app.post(
-            '/models/images/classification/top_n?job_id=%s' % self.model_id,
-            data={'image_list': file_upload, 'image_folder': self.imageset_folder}
+            f'/models/images/classification/top_n?job_id={self.model_id}',
+            data={'image_list': file_upload, 'image_folder': self.imageset_folder},
         )
 
         s = BeautifulSoup(rv.data, 'html.parser')
@@ -827,14 +810,14 @@ class BaseTestCreated(BaseViewsTestWithModel):
                 elif status == 'Running':
                     break
                 else:
-                    raise RuntimeError('job status is %s' % status)
+                    raise RuntimeError(f'job status is {status}')
 
             rv = self.app.post(
-                '/models/images/classification/classify_one.json?job_id=%s' % self.model_id,
-                data={'image_file': image_upload}
+                f'/models/images/classification/classify_one.json?job_id={self.model_id}',
+                data={'image_file': image_upload},
             )
             json.loads(rv.data)
-            assert rv.status_code == 200, 'POST failed with %s' % rv.status_code
+            assert rv.status_code == 200, f'POST failed with {rv.status_code}'
         finally:
             self.delete_model(job2_id)
 
@@ -877,8 +860,10 @@ class BaseTestDatasetModelInteractions(BaseViewsTestWithDataset):
                 # That's what we were waiting for
                 break
             else:
-                raise Exception('Model not waiting - "%s"' % model_status)
-            assert (time.time() - start_time) < timeout, 'Job took more than %s seconds' % timeout
+                raise Exception(f'Model not waiting - "{model_status}"')
+            assert (
+                time.time() - start_time
+            ) < timeout, f'Job took more than {timeout} seconds'
             time.sleep(0.5)
             dataset_status = self.dataset_status(dataset_id)
 
@@ -1236,7 +1221,7 @@ class PythonLayer(caffe.Layer):
     # not exist in the job_dir, then the test will fail.
     def test_python_layer(self):
         tmpdir = tempfile.mkdtemp()
-        py_file = tmpdir + '/py_test.py'
+        py_file = f'{tmpdir}/py_test.py'
         self.write_python_layer_script(py_file)
 
         job_id = self.create_model(python_layer_server_file=py_file)
@@ -1245,8 +1230,8 @@ class PythonLayer(caffe.Layer):
         shutil.rmtree(tmpdir)
 
         assert self.model_wait_completion(job_id) == 'Done', 'first job failed'
-        rv = self.app.get('/models/%s.json' % job_id)
-        assert rv.status_code == 200, 'json load failed with %s' % rv.status_code
+        rv = self.app.get(f'/models/{job_id}.json')
+        assert rv.status_code == 200, f'json load failed with {rv.status_code}'
         content = json.loads(rv.data)
         assert len(content['snapshots']), 'should have at least snapshot'
 

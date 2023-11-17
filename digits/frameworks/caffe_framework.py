@@ -72,7 +72,7 @@ class CaffeFramework(Framework):
         try:
             text_format.Merge(data, pb)
         except text_format.ParseError as e:
-            raise BadNetworkError('Not a valid NetParameter: %s' % e)
+            raise BadNetworkError(f'Not a valid NetParameter: {e}')
 
     @override
     def get_standard_network_desc(self, network):
@@ -86,8 +86,7 @@ class CaffeFramework(Framework):
             path = os.path.join(networks_dir, filename)
             if os.path.isfile(path):
                 match = None
-                match = re.match(r'%s.prototxt' % network, filename)
-                if match:
+                if match := re.match(f'{network}.prototxt', filename):
                     with open(path) as infile:
                         return infile.read()
         # return None if not found
@@ -111,11 +110,8 @@ class CaffeFramework(Framework):
         network.CopyFrom(previous_network)
 
         if not use_same_dataset:
-            # Rename the final layer
-            # XXX making some assumptions about network architecture here
-            ip_layers = [l for l in network.layer if l.type == 'InnerProduct']
-            if len(ip_layers) > 0:
-                ip_layers[-1].name = '%s_retrain' % ip_layers[-1].name
+            if ip_layers := [l for l in network.layer if l.type == 'InnerProduct']:
+                ip_layers[-1].name = f'{ip_layers[-1].name}_retrain'
 
         return network
 

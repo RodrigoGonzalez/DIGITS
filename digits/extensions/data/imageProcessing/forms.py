@@ -17,10 +17,8 @@ class DatasetForm(Form):
     A form used to create an image processing dataset
     """
 
-    def validate_folder_path(form, field):
-        if not field.data:
-            pass
-        else:
+    def validate_folder_path(self, field):
+        if field.data:
             # make sure the filesystem path exists
             if not os.path.exists(field.data) or not os.path.isdir(field.data):
                 raise validators.ValidationError(

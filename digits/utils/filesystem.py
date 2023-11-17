@@ -13,7 +13,7 @@ def get_tree_size(start_path):
     return size (in bytes) of filesystem tree
     """
     if not os.path.exists(start_path):
-        raise ValueError("Incorrect path: %s" % start_path)
+        raise ValueError(f"Incorrect path: {start_path}")
     total_size = 0
     for dirpath, dirnames, filenames in os.walk(start_path):
         for f in filenames:
@@ -25,11 +25,11 @@ def get_tree_size(start_path):
 def get_python_file_dst(dirname, basename):
     basename = os.path.basename(basename)
     (root, ext) = os.path.splitext(basename)
-    if ext != '.py' and ext != '.pyc':
-        ValueError('Python file, %s, needs .py or .pyc extension.' % basename)
-    filename = os.path.join(dirname, 'digits_python_layers' + ext)
+    if ext not in ['.py', '.pyc']:
+        ValueError(f'Python file, {basename}, needs .py or .pyc extension.')
+    filename = os.path.join(dirname, f'digits_python_layers{ext}')
     if os.path.isfile(filename):
-        ValueError('Python file, %s, already exists.' % filename)
+        ValueError(f'Python file, {filename}, already exists.')
     return filename
 
 
@@ -52,7 +52,7 @@ def tail(file, n=40):
     """
     if platform.system() in ['Linux', 'Darwin']:
         import subprocess
-        output = subprocess.check_output(['tail', '-n{}'.format(n), file])
+        return subprocess.check_output(['tail', f'-n{n}', file])
     else:
         from collections import deque
         tailing_lines = deque()
@@ -61,8 +61,7 @@ def tail(file, n=40):
                 tailing_lines.append(line)
                 if len(tailing_lines) > n:
                     tailing_lines.popleft()
-        output = ''.join(tailing_lines)
-    return output
+        return ''.join(tailing_lines)
 
 
 def dir_hash(dir_name):
@@ -72,7 +71,7 @@ def dir_hash(dir_name):
     modified the hash will change.
     """
     if not os.path.isdir(dir_name):
-        raise TypeError('{} is not a directory.'.format(dir_name))
+        raise TypeError(f'{dir_name} is not a directory.')
 
     md5 = hashlib.md5()
     for root, dirs, files in os.walk(dir_name, topdown=True):

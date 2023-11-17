@@ -29,8 +29,8 @@ class InferenceJob(Job):
 
         if fw is None:
             raise RuntimeError(
-                'The "%s" framework cannot be found. Check your server configuration.'
-                % fw_id)
+                f'The "{fw_id}" framework cannot be found. Check your server configuration.'
+            )
 
         # create inference task
         self.tasks.append(fw.create_inference_task(
@@ -46,10 +46,7 @@ class InferenceJob(Job):
     def __getstate__(self):
         fields_to_save = ['_id', '_name']
         full_state = super(InferenceJob, self).__getstate__()
-        state_to_save = {}
-        for field in fields_to_save:
-            state_to_save[field] = full_state[field]
-        return state_to_save
+        return {field: full_state[field] for field in fields_to_save}
 
     def inference_task(self):
         """Return the first and only InferenceTask for this job"""

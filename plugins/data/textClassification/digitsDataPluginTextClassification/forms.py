@@ -10,9 +10,7 @@ from wtforms import validators
 
 
 def validate_file_path(form, field):
-    if not field.data:
-        pass
-    else:
+    if field.data:
         # make sure the filesystem path exists
         if not os.path.exists(field.data) and not os.path.isdir(field.data):
             raise validators.ValidationError(

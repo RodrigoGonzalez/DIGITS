@@ -164,27 +164,25 @@ class GroundTruth:
             GroundTruthObj.OBJECT_TYPES = class_mappings
 
     def update_objects_all(self, _key, _bboxes):
-        if _bboxes:
-            self._objects_all[_key] = _bboxes
-        else:
-            self._objects_all[_key] = []
+        self._objects_all[_key] = _bboxes if _bboxes else []
 
     def load_gt_obj(self):
         """ load bbox ground truth from files either via the provided label directory or list of label files"""
         files = os.listdir(self.label_dir)
         files = filter(lambda x: x.endswith(self.label_ext), files)
         if len(files) == 0:
-            raise RuntimeError('error: no label files found in %s' % self.label_dir)
+            raise RuntimeError(f'error: no label files found in {self.label_dir}')
         for label_file in files:
-            objects_per_image = list()
+            objects_per_image = []
             with open(os.path.join(self.label_dir, label_file), 'rb') as flabel:
                 for row in csv.reader(flabel, delimiter=self.label_delimiter):
                     if len(row) == 0:
                         # This can happen when you open an empty file
                         continue
                     if len(row) < 15:
-                        raise ValueError('Invalid label format in "%s"'
-                                         % os.path.join(self.label_dir, label_file))
+                        raise ValueError(
+                            f'Invalid label format in "{os.path.join(self.label_dir, label_file)}"'
+                        )
 
                     # load data
                     gt = GroundTruthObj()
@@ -206,7 +204,7 @@ class GroundTruth:
                     gt.set_type()
                     box_dimensions = [gt.bbox.xr - gt.bbox.xl, gt.bbox.yb - gt.bbox.yt]
                     if self.min_box_size is not None:
-                        if not all(x >= self.min_box_size for x in box_dimensions):
+                        if any(x < self.min_box_size for x in box_dimensions):
                             # object is smaller than threshold => set to "DontCare"
                             gt.stype = ''
                             gt.object = ObjectType.Dontcare

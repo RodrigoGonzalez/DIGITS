@@ -51,8 +51,9 @@ def requires_login(f=None, redirect=True):
             # Validate username
             validate_username(username)
         except ValueError as e:
-            raise werkzeug.exceptions.BadRequest('Invalid username - %s' % e.message)
+            raise werkzeug.exceptions.BadRequest(f'Invalid username - {e.message}')
         return f(*args, **kwargs)
+
     return decorated
 
 
@@ -75,6 +76,4 @@ def has_permission(job, action, username=None):
 
     if not username:
         return False
-    if not job.username:
-        return True
-    return username == job.username
+    return True if not job.username else username == job.username

@@ -263,7 +263,7 @@ class CaffeTrainTask(TrainTask):
                 # imresize will not resize if the depth is anything
                 # other than 3 or 4.  If it's 1, imresize expects an
                 # array.
-                if (len(shape) == 2 or (len(shape) == 3 and (shape[2] == 3 or shape[2] == 4))):
+                if len(shape) == 2 or len(shape) == 3 and shape[2] in [3, 4]:
                     mean_image = scipy.misc.imresize(mean_image, (data_shape[2], data_shape[3]))
                 else:
                     mean_image = scipy.misc.imresize(mean_image[:, :, 0],
@@ -276,10 +276,7 @@ class CaffeTrainTask(TrainTask):
 
     def get_mean_pixel(self, mean_file):
         mean_image = self.get_mean_image(mean_file)
-        mean_pixel = None
-        if mean_image is not None:
-            mean_pixel = mean_image.mean(1).mean(1)
-        return mean_pixel
+        return mean_image.mean(1).mean(1) if mean_image is not None else None
 
     def set_mean_value(self, layer, mean_pixel):
         # remove any values that may already be in the network

@@ -63,9 +63,9 @@ def load_image(path):
             image = PIL.Image.open(path)
             image.load()
         except IOError as e:
-            raise errors.LoadImageError, 'IOError: Trying to load "%s": %s' % (path, e.message)
+            raise (errors.LoadImageError, f'IOError: Trying to load "{path}": {e.message}')
     else:
-        raise errors.LoadImageError, '"%s" not found' % path
+        raise (errors.LoadImageError, f'"{path}" not found')
 
     if image.mode in ['L', 'RGB']:
         # No conversion necessary
@@ -87,7 +87,7 @@ def load_image(path):
         new.paste(image, mask=image.convert('RGBA'))
         return new
     else:
-        raise errors.LoadImageError, 'Image mode "%s" not supported' % image.mode
+        raise (errors.LoadImageError, f'Image mode "{image.mode}" not supported')
 
 
 def upscale(image, ratio):
@@ -124,14 +124,14 @@ def image_to_array(image,
     """
 
     if channels not in [None, 1, 3, 4]:
-        raise ValueError('unsupported number of channels: %s' % channels)
+        raise ValueError(f'unsupported number of channels: {channels}')
 
     if isinstance(image, PIL.Image.Image):
         # Convert image mode (channels)
         if channels is None:
             image_mode = image.mode
             if image_mode not in ['L', 'RGB', 'RGBA']:
-                raise ValueError('unknown image mode "%s"' % image_mode)
+                raise ValueError(f'unknown image mode "{image_mode}"')
         elif channels == 1:
             # 8-bit pixels, black and white
             image_mode = 'L'
@@ -150,15 +150,17 @@ def image_to_array(image,
         if image.ndim == 3 and image.shape[2] == 1:
             image = image.reshape(image.shape[:2])
         if channels is None:
-            if not (image.ndim == 2 or (image.ndim == 3 and image.shape[2] in [3, 4])):
-                raise ValueError('invalid image shape: %s' % (image.shape,))
+            if image.ndim != 2 and (
+                image.ndim != 3 or image.shape[2] not in [3, 4]
+            ):
+                raise ValueError(f'invalid image shape: {image.shape}')
         elif channels == 1:
             if image.ndim != 2:
                 if image.ndim == 3 and image.shape[2] in [3, 4]:
                     # color to grayscale. throw away alpha
                     image = np.dot(image[:, :, :3], [0.299, 0.587, 0.114]).astype(np.uint8)
                 else:
-                    raise ValueError('invalid image shape: %s' % (image.shape,))
+                    raise ValueError(f'invalid image shape: {image.shape}')
         elif channels == 3:
             if image.ndim == 2:
                 # grayscale to color
@@ -167,7 +169,7 @@ def image_to_array(image,
                 # throw away alpha
                 image = image[:, :, :3]
             elif image.shape[2] != 3:
-                raise ValueError('invalid image shape: %s' % (image.shape,))
+                raise ValueError(f'invalid image shape: {image.shape}')
         elif channels == 4:
             if image.ndim == 2:
                 # grayscale to color
@@ -178,7 +180,7 @@ def image_to_array(image,
                 image = np.append(image, np.zeros(image.shape[:2] + (1,), dtype='uint8'), axis=2)
                 image[:, :, 3] = 255
             elif image.shape[2] != 4:
-                raise ValueError('invalid image shape: %s' % (image.shape,))
+                raise ValueError(f'invalid image shape: {image.shape}')
     else:
         raise ValueError('resize_image() expected a PIL.Image.Image or a numpy.ndarray')
 
@@ -205,7 +207,7 @@ def resize_image(image, height, width,
     if resize_mode is None:
         resize_mode = 'squash'
     if resize_mode not in ['crop', 'squash', 'fill', 'half_crop']:
-        raise ValueError('resize_mode "%s" not supported' % resize_mode)
+        raise ValueError(f'resize_mode "{resize_mode}" not supported')
 
     # convert to array
     image = image_to_array(image, channels)
@@ -270,7 +272,7 @@ def resize_image(image, height, width,
                 start = int(round((resize_height - height) / 2.0))
                 image = image[start:start + height, :]
         else:
-            raise Exception('unrecognized resize_mode "%s"' % resize_mode)
+            raise Exception(f'unrecognized resize_mode "{resize_mode}"')
 
         # fill ends of dimension that is too short with random noise
         if width_ratio > height_ratio:
@@ -310,16 +312,11 @@ def embed_image_html(image):
 
     # Read format from the image
     fmt = image.format
-    if not fmt:
-        # default to PNG
-        fmt = 'png'
-    else:
-        fmt = fmt.lower()
-
+    fmt = 'png' if not fmt else fmt.lower()
     string_buf = StringIO()
     image.save(string_buf, format=fmt)
     data = string_buf.getvalue().encode('base64').replace('\n', '')
-    return 'data:image/%s;base64,%s' % (fmt, data)
+    return f'data:image/{fmt};base64,{data}'
 
 
 def get_layer_vis_square(data,
@@ -341,7 +338,7 @@ def get_layer_vis_square(data,
     max_width -- maximum width for the vis_square
     """
     if channel_order not in ['RGB', 'BGR']:
-        raise ValueError('Unsupported channel_order %s' % channel_order)
+        raise ValueError(f'Unsupported channel_order {channel_order}')
     if data.ndim == 1:
         # interpret as 1x1 grayscale images
         # (N, 1, 1)
@@ -358,10 +355,6 @@ def get_layer_vis_square(data,
                 data = data[[2, 1, 0], ...]  # BGR to RGB (see issue #59)
             data = data.transpose(1, 2, 0)
             data = data[np.newaxis, ...]
-        else:
-            # interpret as grayscale images
-            # (N, H, W)
-            pass
     elif data.ndim == 4:
         if data.shape[0] == 3:
             # interpret as HxW color images
@@ -380,7 +373,7 @@ def get_layer_vis_square(data,
             # (N, H, W)
             data = data.reshape((data.shape[0] * data.shape[1], data.shape[2], data.shape[3]))
     else:
-        raise RuntimeError('unrecognized data shape: %s' % (data.shape,))
+        raise RuntimeError(f'unrecognized data shape: {data.shape}')
 
     # chop off data so that it will fit within max_width
     padsize = 0
@@ -459,11 +452,8 @@ def vis_square(images,
     # Compute the output image matrix dimensions
     n = int(np.ceil(np.sqrt(images.shape[0])))
     ny = n
-    nx = n
     length = images.shape[0]
-    if n * (n - 1) >= length:
-        nx = n - 1
-
+    nx = n - 1 if n * (n - 1) >= length else n
     # Add padding between the images
     padding = ((0, nx * ny - length), (0, padsize), (0, padsize)) + ((0, 0),) * (images.ndim - 3)
     padded = np.pad(images, padding, mode='constant', constant_values=255)

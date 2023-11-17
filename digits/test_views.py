@@ -37,7 +37,7 @@ class BaseViewsTest(object):
 
         rv = cls.app.post('/login', data={
             'username': 'digits-testsuite'})
-        assert rv.status_code == 302, 'Login failed with %s' % rv.status_code
+        assert rv.status_code == 302, f'Login failed with {rv.status_code}'
 
     @classmethod
     def tearDownClass(cls):
@@ -48,7 +48,7 @@ class BaseViewsTest(object):
             cls.delete_dataset(job_id)
 
         rv = cls.app.post('/logout')
-        assert rv.status_code == 302, 'Logout failed with %s' % rv.status_code
+        assert rv.status_code == 302, f'Logout failed with {rv.status_code}'
 
     @classmethod
     def job_id_from_response(cls, rv):
@@ -64,9 +64,12 @@ class BaseViewsTest(object):
         """
         Test whether a job exists
         """
-        url = '/%s/%s' % (job_type, job_id)
+        url = f'/{job_type}/{job_id}'
         rv = cls.app.get(url, follow_redirects=True)
-        assert rv.status_code in [200, 404], 'got status code "%s" from "%s"' % (rv.status_code, url)
+        assert rv.status_code in [
+            200,
+            404,
+        ], f'got status code "{rv.status_code}" from "{url}"'
         return rv.status_code == 200
 
     @classmethod
@@ -74,9 +77,11 @@ class BaseViewsTest(object):
         """
         Get the status of a job
         """
-        url = '/%s/%s/status' % (job_type, job_id)
+        url = f'/{job_type}/{job_id}/status'
         rv = cls.app.get(url)
-        assert rv.status_code == 200, 'Cannot get status of job %s. "%s" returned %s' % (job_id, url, rv.status_code)
+        assert (
+            rv.status_code == 200
+        ), f'Cannot get status of job {job_id}. "{url}" returned {rv.status_code}'
         status = json.loads(rv.data)
         return status['status']
 
@@ -85,20 +90,23 @@ class BaseViewsTest(object):
         """
         Get job information (full JSON response)
         """
-        url = '/%s/%s.json' % (job_type, job_id)
+        url = f'/{job_type}/{job_id}.json'
         rv = cls.app.get(url)
-        assert rv.status_code == 200, 'Cannot get info from job %s. "%s" returned %s' % (job_id, url, rv.status_code)
-        info = json.loads(rv.data)
-        return info
+        assert (
+            rv.status_code == 200
+        ), f'Cannot get info from job {job_id}. "{url}" returned {rv.status_code}'
+        return json.loads(rv.data)
 
     @classmethod
     def job_info_html(cls, job_id, job_type='jobs'):
         """
         Get job information (full HTML response)
         """
-        url = '/%s/%s' % (job_type, job_id)
+        url = f'/{job_type}/{job_id}'
         rv = cls.app.get(url)
-        assert rv.status_code == 200, 'Cannot get info from job %s. "%s" returned %s' % (job_id, url, rv.status_code)
+        assert (
+            rv.status_code == 200
+        ), f'Cannot get info from job {job_id}. "{url}" returned {rv.status_code}'
         return rv.data
 
     @classmethod
@@ -107,7 +115,7 @@ class BaseViewsTest(object):
         Abort a job
         Returns the HTTP status code
         """
-        rv = cls.app.post('/%s/%s/abort' % (job_type, job_id))
+        rv = cls.app.post(f'/{job_type}/{job_id}/abort')
         return rv.status_code
 
     @classmethod
@@ -131,20 +139,24 @@ class BaseViewsTest(object):
                 # make sure job appears in completed jobs
                 url = '/completed_jobs.json'
                 rv = cls.app.get(url)
-                assert rv.status_code == 200, 'Cannot get info from job %s. "%s" returned %s' % (
-                    job_id, url, rv.status_code)
+                assert (
+                    rv.status_code == 200
+                ), f'Cannot get info from job {job_id}. "{url}" returned {rv.status_code}'
                 info = json.loads(rv.data)
                 dataset_ids = [job['id'] for job in info['datasets']]
                 model_ids = [job['id'] for job in info['models']]
-                assert job_id in dataset_ids or job_id in model_ids, "job %s not found in completed jobs" % job_id
+                assert (
+                    job_id in dataset_ids or job_id in model_ids
+                ), f"job {job_id} not found in completed jobs"
                 # make sure job can be shown without error
-                url = '/jobs/%s' % job_id
+                url = f'/jobs/{job_id}'
                 rv = cls.app.get(url, follow_redirects=True)
-                assert rv.status_code == 200, 'Cannot get info from job %s. "%s" returned %s' % (
-                    job_id, url, rv.status_code)
+                assert (
+                    rv.status_code == 200
+                ), f'Cannot get info from job {job_id}. "{url}" returned {rv.status_code}'
                 assert job_id in rv.data
                 return status
-            assert (time.time() - start) < timeout, 'Job took more than %s seconds' % timeout
+            assert (time.time() - start) < timeout, f'Job took more than {timeout} seconds'
             time.sleep(polling_period)
 
     @classmethod
@@ -157,7 +169,7 @@ class BaseViewsTest(object):
             data['job_name'] = name
         if notes:
             data['job_notes'] = notes
-        rv = cls.app.put('/jobs/%s' % job_id, data=data)
+        rv = cls.app.put(f'/jobs/{job_id}', data=data)
         return rv.status_code
 
     @classmethod
@@ -166,7 +178,7 @@ class BaseViewsTest(object):
         Delete a job
         Returns the HTTP status code
         """
-        rv = cls.app.delete('/%s/%s' % (job_type, job_id))
+        rv = cls.app.delete(f'/{job_type}/{job_id}')
         return rv.status_code
 
 ################################################################################
@@ -183,7 +195,7 @@ class TestViews(BaseViewsTest):
 
     def test_homepage(self):
         rv = self.app.get('/')
-        assert rv.status_code == 200, 'page load failed with %s' % rv.status_code
+        assert rv.status_code == 200, f'page load failed with {rv.status_code}'
         for text in ['Home', 'Datasets', 'Models']:
             assert text in rv.data, 'unexpected page format'
 

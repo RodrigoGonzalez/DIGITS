@@ -43,4 +43,5 @@ class TestGetNvmlInfo():
     def test_memory_info_exists(self):
         for index, device in enumerate(device_query.get_devices(True)):
             assert 'memory' in device_query.get_nvml_info(
-                index), 'NVML should have memory information for "%s"' % device.name
+                index
+            ), f'NVML should have memory information for "{device.name}"'

@@ -47,7 +47,7 @@ def create_classification_imageset(
             pixel = [0, 0, 0]
             pixel[pixel_index] = color
             pil_img = _create_gradient_image(image_size, (0, 0, 0), pixel, rotation)
-            img_path = os.path.join(class_name, str(i) + '.png')
+            img_path = os.path.join(class_name, f'{str(i)}.png')
             pil_img.save(os.path.join(folder, img_path))
             paths[class_name].append(img_path)
 

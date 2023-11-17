@@ -54,7 +54,7 @@ class Job(StatusCls):
         super(Job, self).__init__()
 
         # create a unique ID
-        self._id = '%s-%s' % (time.strftime('%Y%m%d-%H%M%S'), os.urandom(2).encode('hex'))
+        self._id = f"{time.strftime('%Y%m%d-%H%M%S')}-{os.urandom(2).encode('hex')}"
         self._dir = os.path.join(config_value('jobs_dir'), self._id)
         self._name = name
         self.group = group
@@ -102,9 +102,7 @@ class Job(StatusCls):
             'status': self.status.name,
         }
         if detailed:
-            d.update({
-                'directory': self.dir(),
-            })
+            d['directory'] = self.dir()
         return d
 
     def id(self):
@@ -139,20 +137,13 @@ class Job(StatusCls):
     def path_is_local(self, path):
         """assert that a path is local to _dir"""
         p = os.path.normpath(path)
-        if os.path.isabs(p):
-            return False
-        if p.startswith('..'):
-            return False
-        return True
+        return False if os.path.isabs(p) else not p.startswith('..')
 
     def name(self):
         return self._name
 
     def notes(self):
-        if hasattr(self, '_notes'):
-            return self._notes
-        else:
-            return None
+        return self._notes if hasattr(self, '_notes') else None
 
     def job_type(self):
         """
@@ -202,20 +193,17 @@ class Job(StatusCls):
                 if start_status == Status.RUN:
                     starts.append(start_timestamp)
                     # Only search for stops if the task was started at some point
-                    for stop_status, stop_timestamp in task.status_history:
-                        if stop_status in [Status.DONE, Status.ABORT, Status.ERROR]:
-                            stops.append(stop_timestamp)
+                    stops.extend(
+                        stop_timestamp
+                        for stop_status, stop_timestamp in task.status_history
+                        if stop_status in [Status.DONE, Status.ABORT, Status.ERROR]
+                    )
                     break
 
-        if len(starts):
-            min_start = min(starts)
-            if len(stops):
-                max_stop = max(stops)
-                return max_stop - min_start
-            else:
-                return time.time() - min_start
-        else:
+        if not len(starts):
             return 0
+        min_start = min(starts)
+        return max(stops) - min_start if len(stops) else time.time() - min_start
 
     def on_status_update(self):
         """

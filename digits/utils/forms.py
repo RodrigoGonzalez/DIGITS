@@ -57,7 +57,9 @@ def validate_required_if_set(other_field, **kwargs):
                         and not field.data.strip()) \
                     or (isinstance(field.data, FileStorage)
                         and not field.data.filename.strip()):
-                raise validators.ValidationError('This field is required if %s is set.' % other_field)
+                raise validators.ValidationError(
+                    f'This field is required if {other_field} is set.'
+                )
         else:
             # This field is not required, ignore other errors
             field.errors[:] = []
@@ -79,8 +81,9 @@ def validate_greater_than(fieldname):
         except KeyError:
             raise validators.ValidationError(field.gettext(u"Invalid field name '%s'.") % fieldname)
         if field.data != '' and field.data < other.data:
-            message = field.gettext(u'Field must be greater than %s.' % fieldname)
+            message = field.gettext(f'Field must be greater than {fieldname}.')
             raise validators.ValidationError(message)
+
     return _validator
 
 
@@ -230,17 +233,29 @@ class FileInput(object):
     def __call__(self, field, **kwargs):
         kwargs.setdefault('id', field.id)
         return wtforms.widgets.HTMLString(
-            ('<div class="input-group">' +
-             '  <span class="input-group-btn">' +
-             '    <span class="btn btn-info btn-file" %s>' +
-             '      Browse&hellip;' +
-             '      <input %s>' +
-             '    </span>' +
-             '  </span>' +
-             '  <input class="form-control" %s readonly>' +
-             '</div>') % (wtforms.widgets.html_params(id=field.name + '_btn', name=field.name + '_btn'),
-                          wtforms.widgets.html_params(name=field.name, type='file', **kwargs),
-                          wtforms.widgets.html_params(id=field.id + '_text', name=field.name + '_text', type='text')))
+            (
+                '<div class="input-group">'
+                + '  <span class="input-group-btn">'
+                + '    <span class="btn btn-info btn-file" %s>'
+                + '      Browse&hellip;'
+                + '      <input %s>'
+                + '    </span>'
+                + '  </span>'
+                + '  <input class="form-control" %s readonly>'
+                + '</div>'
+            )
+            % (
+                wtforms.widgets.html_params(
+                    id=f'{field.name}_btn', name=f'{field.name}_btn'
+                ),
+                wtforms.widgets.html_params(
+                    name=field.name, type='file', **kwargs
+                ),
+                wtforms.widgets.html_params(
+                    id=f'{field.id}_text', name=f'{field.name}_text', type='text'
+                ),
+            )
+        )
 
 
 class FileField(wtforms.FileField):
@@ -288,7 +303,9 @@ class MultiIntegerField(wtforms.Field):
 
     def __init__(self, label='', validators=None, tooltip='', explanation_file='', **kwargs):
         super(MultiIntegerField, self).__init__(label, validators, **kwargs)
-        self.tooltip = Tooltip(self.id, self.short_name, tooltip + ' (accepts comma separated list)')
+        self.tooltip = Tooltip(
+            self.id, self.short_name, f'{tooltip} (accepts comma separated list)'
+        )
         self.explanation = Explanation(self.id, self.short_name, explanation_file)
         self.small_text = 'multiples allowed'
 
@@ -297,7 +314,7 @@ class MultiIntegerField(wtforms.Field):
             if not isinstance(value, (list, tuple)):
                 value = [value]
             value = [int(x) for x in value if self.is_int(x)]
-            if len(value) == 0:
+            if not value:
                 value = [None]
         self.__dict__[name] = value
 
@@ -334,7 +351,9 @@ class MultiFloatField(wtforms.Field):
 
     def __init__(self, label='', validators=None, tooltip='', explanation_file='', **kwargs):
         super(MultiFloatField, self).__init__(label, validators, **kwargs)
-        self.tooltip = Tooltip(self.id, self.short_name, tooltip + ' (accepts comma separated list)')
+        self.tooltip = Tooltip(
+            self.id, self.short_name, f'{tooltip} (accepts comma separated list)'
+        )
         self.explanation = Explanation(self.id, self.short_name, explanation_file)
         self.small_text = 'multiples allowed'
 
@@ -343,7 +362,7 @@ class MultiFloatField(wtforms.Field):
             if not isinstance(value, (list, tuple)):
                 value = [value]
             value = [float(x) for x in value if self.is_float(x)]
-            if len(value) == 0:
+            if not value:
                 value = [None]
         self.__dict__[name] = value
 
@@ -364,10 +383,7 @@ class MultiFloatField(wtforms.Field):
                 raise ValueError(self.gettext('Not a valid float value'))
 
     def data_array(self):
-        if isinstance(self.data, (list, tuple)):
-            return self.data
-        else:
-            return [self.data]
+        return self.data if isinstance(self.data, (list, tuple)) else [self.data]
 
 
 class MultiNumberRange(object):
@@ -456,8 +472,8 @@ class MultiOptional(object):
 
 def add_warning(form, warning):
     if not hasattr(form, 'warnings'):
-        form.warnings = tuple([])
-    form.warnings += tuple([warning])
+        form.warnings = ()
+    form.warnings += (warning, )
     return True
 
 # Iterate over the form looking for field data to either save to or
@@ -482,26 +498,28 @@ def iterate_over_form(job, form, function, prefix=['form'], indent=''):
     blacklist_fields = ['FileField', 'SubmitField']
 
     for attr_name in vars(form):
-        if attr_name == 'csrf_token' or attr_name == 'flags':
+        if attr_name in ['csrf_token', 'flags']:
             continue
         attr = getattr(form, attr_name)
         if isinstance(attr, object):
             if isinstance(attr, SubmitField):
                 continue
-            warnings |= iterate_over_form(job, attr, function, prefix + [attr_name], indent + '    ')
+            warnings |= iterate_over_form(
+                job, attr, function, prefix + [attr_name], f'{indent}    '
+            )
         if hasattr(attr, 'data') and hasattr(attr, 'type'):
-            if (isinstance(attr.data, int) or
-                isinstance(attr.data, float) or
-                isinstance(attr.data, basestring) or
-                    attr.type in whitelist_fields):
-                key = '%s.%s.data' % ('.'.join(prefix), attr_name)
+            if (
+                isinstance(attr.data, (int, float, basestring))
+                or attr.type in whitelist_fields
+            ):
+                key = f"{'.'.join(prefix)}.{attr_name}.data"
                 warnings |= function(job, attr, key, attr.data)
 
             # Warn if certain field types are not cloned
             if (len(attr.type) > 5 and attr.type[-5:] == 'Field' and
                 attr.type not in whitelist_fields and
                     attr.type not in blacklist_fields):
-                warnings |= add_warning(attr, 'Field type, %s, not cloned' % attr.type)
+                warnings |= add_warning(attr, f'Field type, {attr.type}, not cloned')
     return warnings
 
 # function to pass to iterate_over_form to save data to job

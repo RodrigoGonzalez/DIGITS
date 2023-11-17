@@ -53,10 +53,7 @@ def create_lmdbs(folder, image_width=None, image_height=None, image_count=None):
     if image_height is None:
         image_height = IMAGE_SIZE
 
-    if image_count is None:
-        train_image_count = TRAIN_IMAGE_COUNT
-    else:
-        train_image_count = image_count
+    train_image_count = TRAIN_IMAGE_COUNT if image_count is None else image_count
     val_image_count = VAL_IMAGE_COUNT
 
     # Used to calculate the gradients later
@@ -65,12 +62,12 @@ def create_lmdbs(folder, image_width=None, image_height=None, image_count=None):
     for phase, image_count in [
             ('train', train_image_count),
             ('val', val_image_count)]:
-        image_db = lmdb.open(os.path.join(folder, '%s_images' % phase),
-                             map_async=True,
-                             max_dbs=0)
-        label_db = lmdb.open(os.path.join(folder, '%s_labels' % phase),
-                             map_async=True,
-                             max_dbs=0)
+        image_db = lmdb.open(
+            os.path.join(folder, f'{phase}_images'), map_async=True, max_dbs=0
+        )
+        label_db = lmdb.open(
+            os.path.join(folder, f'{phase}_labels'), map_async=True, max_dbs=0
+        )
 
         image_sum = np.zeros((image_height, image_width), 'float64')
 
@@ -108,8 +105,8 @@ def create_lmdbs(folder, image_width=None, image_height=None, image_count=None):
 
         # save mean
         mean_image = (image_sum / image_count).astype('uint8')
-        _save_mean(mean_image, os.path.join(folder, '%s_mean.png' % phase))
-        _save_mean(mean_image, os.path.join(folder, '%s_mean.binaryproto' % phase))
+        _save_mean(mean_image, os.path.join(folder, f'{phase}_mean.png'))
+        _save_mean(mean_image, os.path.join(folder, f'{phase}_mean.binaryproto'))
 
     # create test image
     #   The network should be able to easily produce two numbers >1

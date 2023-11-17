@@ -168,25 +168,38 @@ class ImageClassificationDatasetJob(ImageDatasetJob):
         """
         Return the task that creates the test set
         """
-        for t in self.tasks:
-            if isinstance(t, tasks.CreateDbTask) and 'test' in t.name().lower():
-                return t
-        return None
+        return next(
+            (
+                t
+                for t in self.tasks
+                if isinstance(t, tasks.CreateDbTask) and 'test' in t.name().lower()
+            ),
+            None,
+        )
 
     def train_db_task(self):
         """
         Return the task that creates the training set
         """
-        for t in self.tasks:
-            if isinstance(t, tasks.CreateDbTask) and 'train' in t.name().lower():
-                return t
-        return None
+        return next(
+            (
+                t
+                for t in self.tasks
+                if isinstance(t, tasks.CreateDbTask)
+                and 'train' in t.name().lower()
+            ),
+            None,
+        )
 
     def val_db_task(self):
         """
         Return the task that creates the validation set
         """
-        for t in self.tasks:
-            if isinstance(t, tasks.CreateDbTask) and 'val' in t.name().lower():
-                return t
-        return None
+        return next(
+            (
+                t
+                for t in self.tasks
+                if isinstance(t, tasks.CreateDbTask) and 'val' in t.name().lower()
+            ),
+            None,
+        )

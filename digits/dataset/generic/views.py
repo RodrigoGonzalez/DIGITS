@@ -40,7 +40,7 @@ def new(extension_id):
 
     extension = extensions.data.get_extension(extension_id)
     if extension is None:
-        raise ValueError("Unknown extension '%s'" % extension_id)
+        raise ValueError(f"Unknown extension '{extension_id}'")
     extension_form = extension.get_dataset_form()
 
     # Is there a request to clone a job with ?clone=<job_id>

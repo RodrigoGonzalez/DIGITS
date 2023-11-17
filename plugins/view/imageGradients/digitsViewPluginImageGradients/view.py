@@ -28,14 +28,14 @@ class Visualization(VisualizationInterface):
         """
         # arrow config
         arrow_color = kwargs['arrow_color']
-        if arrow_color == "red":
-            self.color = (255, 0, 0)
+        if arrow_color == "blue":
+            self.color = (0, 0, 255)
         elif arrow_color == "green":
             self.color = (0, 255, 0)
-        elif arrow_color == "blue":
-            self.color = (0, 0, 255)
+        elif arrow_color == "red":
+            self.color = (255, 0, 0)
         else:
-            raise ValueError("unknown color: %s" % arrow_color)
+            raise ValueError(f"unknown color: {arrow_color}")
         self.arrow_size = float(kwargs['arrow_size'])
 
         # image dimensions (HWC)

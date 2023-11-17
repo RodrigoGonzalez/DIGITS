@@ -103,11 +103,14 @@ class DataIngestion(DataIngestionInterface):
                     count = self.test_image_count
                 else:
                     return [(self.gradient_x, self.gradient_y)]
-        else:
-            if stage == constants.TRAIN_DB:
-                count = self.train_image_count
-            elif stage == constants.VAL_DB:
-                count = self.val_image_count
-            elif stage == constants.TEST_DB:
-                count = self.test_image_count
-        return [np.random.random_sample(2) - 0.5 for i in xrange(count)] if count > 0 else []
+        elif stage == constants.TRAIN_DB:
+            count = self.train_image_count
+        elif stage == constants.VAL_DB:
+            count = self.val_image_count
+        elif stage == constants.TEST_DB:
+            count = self.test_image_count
+        return (
+            [np.random.random_sample(2) - 0.5 for _ in xrange(count)]
+            if count > 0
+            else []
+        )

@@ -129,20 +129,18 @@ def push():
                 break
     if not found:
         return 'Unable to find requested model', 404
-    else:
-        progress = Progress(model_id)
-        weights, model, label, meta_data, python_layer = retrieve_files(url, directory, progress)
-        job = PretrainedModelJob(
-            weights,
-            model,
-            label,
-            meta_data['framework'],
-            username=auth.get_username(),
-            name=meta_data['name']
-        )
-        scheduler.add_job(job)
-        response = flask.make_response(job.id())
-        return response
+    progress = Progress(model_id)
+    weights, model, label, meta_data, python_layer = retrieve_files(url, directory, progress)
+    job = PretrainedModelJob(
+        weights,
+        model,
+        label,
+        meta_data['framework'],
+        username=auth.get_username(),
+        name=meta_data['name']
+    )
+    scheduler.add_job(job)
+    return flask.make_response(job.id())
 
 
 @blueprint.route('/models', methods=['GET'])
@@ -162,12 +160,8 @@ def models():
     for i, store_url in enumerate(store_urls):
         if len(store_url) == 0:
             continue
-        model_list = list()
-        if store_url[-1] != '/':
-            store_base_url = store_url + '/'
-        else:
-            store_base_url = store_url
-
+        model_list = []
+        store_base_url = f'{store_url}/' if store_url[-1] != '/' else store_url
         try:
             response = requests.get(os.path.join(store_base_url, 'master.json'))
             if response.status_code == 200:
@@ -178,13 +172,12 @@ def models():
                 page = requests.get(store_base_url)
                 parser = StoreParser()
                 parser.feed(page.content)
-                if len(parser.get_child_dirs()) > 0:  # we have list of subdirectories
-                    dirs = [d[:-1] for d in parser.get_child_dirs()]
-                    msg = 'Thanks for visiting {}'.format(store_base_url)
-                else:  # nothing found, try next URL
+                if len(parser.get_child_dirs()) <= 0:
                     continue
+                dirs = [d[:-1] for d in parser.get_child_dirs()]
+                msg = f'Thanks for visiting {store_base_url}'
         except requests.exceptions.RequestException as e:
-            logger.warning('Skip %s due to error %s' % (store_base_url, e))
+            logger.warning(f'Skip {store_base_url} due to error {e}')
             continue
 
         for subdir in dirs:

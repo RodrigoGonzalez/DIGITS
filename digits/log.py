@@ -45,12 +45,12 @@ class JobIdLoggerAdapter(logging.LoggerAdapter):
         if 'job_id' in kwargs:
             if 'extra' not in kwargs:
                 kwargs['extra'] = {}
-            kwargs['extra']['job_id'] = ' [%s]' % kwargs['job_id']
+            kwargs['extra']['job_id'] = f" [{kwargs['job_id']}]"
             del kwargs['job_id']
         elif 'job_id' in self.extra:
             if 'extra' not in kwargs:
                 kwargs['extra'] = {}
-            kwargs['extra']['job_id'] = ' [%s]' % self.extra['job_id']
+            kwargs['extra']['job_id'] = f" [{self.extra['job_id']}]"
         return msg, kwargs
 
 

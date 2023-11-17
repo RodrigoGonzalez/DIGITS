@@ -21,26 +21,28 @@ def validate_output_file(filename):
         return True
     if os.path.exists(filename):
         if not os.access(filename, os.W_OK):
-            logger.error('cannot overwrite existing output file "%s"' % filename)
+            logger.error(f'cannot overwrite existing output file "{filename}"')
             return False
     output_dir = os.path.dirname(filename)
     if not output_dir:
         output_dir = '.'
     if not os.path.exists(output_dir):
-        logger.error('output directory "%s" does not exist' % output_dir)
+        logger.error(f'output directory "{output_dir}" does not exist')
         return False
     if not os.access(output_dir, os.W_OK):
-        logger.error('you do not have write access to output directory "%s"' % output_dir)
+        logger.error(
+            f'you do not have write access to output directory "{output_dir}"'
+        )
         return False
     return True
 
 
 def validate_input_file(filename):
     if not os.path.exists(filename) or not os.path.isfile(filename):
-        logger.error('input file "%s" does not exist' % filename)
+        logger.error(f'input file "{filename}" does not exist')
         return False
     if not os.access(filename, os.R_OK):
-        logger.error('you do not have read access to "%s"' % filename)
+        logger.error(f'you do not have read access to "{filename}"')
         return False
     return True
 
@@ -49,20 +51,19 @@ def validate_range(number, min_value=None, max_value=None, allow_none=False):
     if number is None:
         if allow_none:
             return True
-        else:
-            logger.error('invalid value %s' % number)
-            return False
+        logger.error(f'invalid value {number}')
+        return False
     try:
         float(number)
     except ValueError:
-        logger.error('invalid value %s' % number)
+        logger.error(f'invalid value {number}')
         return False
 
     if min_value is not None and number < min_value:
-        logger.error('invalid value %s' % number)
+        logger.error(f'invalid value {number}')
         return False
     if max_value is not None and number > max_value:
-        logger.error('invalid value %s' % number)
+        logger.error(f'invalid value {number}')
         return False
     return True
 
@@ -121,5 +122,5 @@ if __name__ == '__main__':
     try:
         image.save(args['output'])
     except KeyError:
-        logger.error('Unable to save file to "%s"' % args['output'])
+        logger.error(f"""Unable to save file to "{args['output']}\"""")
         sys.exit(1)

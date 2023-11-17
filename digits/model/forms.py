@@ -19,24 +19,21 @@ class ModelForm(Form):
 
     # Methods
 
-    def selection_exists_in_choices(form, field):
-        found = False
-        for choice in field.choices:
-            if choice[0] == field.data:
-                found = True
+    def selection_exists_in_choices(self, field):
+        found = any(choice[0] == field.data for choice in field.choices)
         if not found:
             raise validators.ValidationError("Selected job doesn't exist. Maybe it was deleted by another user.")
 
-    def validate_NetParameter(form, field):
-        fw = frameworks.get_framework_by_id(form['framework'].data)
+    def validate_NetParameter(self, field):
+        fw = frameworks.get_framework_by_id(self['framework'].data)
         try:
             # below function raises a BadNetworkException in case of validation error
             fw.validate_network(field.data)
         except frameworks.errors.BadNetworkError as e:
-            raise validators.ValidationError('Bad network: %s' % e.message)
+            raise validators.ValidationError(f'Bad network: {e.message}')
 
-    def validate_file_exists(form, field):
-        from_client = bool(form.python_layer_from_client.data)
+    def validate_file_exists(self, field):
+        from_client = bool(self.python_layer_from_client.data)
 
         filename = ''
         if not from_client and field.type == 'StringField':
@@ -46,10 +43,12 @@ class ModelForm(Form):
             return
 
         if not os.path.isfile(filename):
-            raise validators.ValidationError('Server side file, %s, does not exist.' % filename)
+            raise validators.ValidationError(
+                f'Server side file, {filename}, does not exist.'
+            )
 
-    def validate_py_ext(form, field):
-        from_client = bool(form.python_layer_from_client.data)
+    def validate_py_ext(self, field):
+        from_client = bool(self.python_layer_from_client.data)
 
         filename = ''
         if from_client and field.type == 'FileField':
@@ -61,8 +60,10 @@ class ModelForm(Form):
             return
 
         (root, ext) = os.path.splitext(filename)
-        if ext != '.py' and ext != '.pyc':
-            raise validators.ValidationError('Python file, %s, needs .py or .pyc extension.' % filename)
+        if ext not in ['.py', '.pyc']:
+            raise validators.ValidationError(
+                f'Python file, {filename}, needs .py or .pyc extension.'
+            )
 
     # Fields
 
@@ -166,8 +167,8 @@ class ModelForm(Form):
         tooltip="What type of solver will be used?",
     )
 
-    def validate_solver_type(form, field):
-        fw = frameworks.get_framework_by_id(form.framework)
+    def validate_solver_type(self, field):
+        fw = frameworks.get_framework_by_id(self.framework)
         if fw is not None:
             if not fw.supports_solver_type(field.data):
                 raise validators.ValidationError(
@@ -215,8 +216,8 @@ class ModelForm(Form):
     lr_step_gamma = wtforms.FloatField('Gamma', default=0.1)
     lr_multistep_values = wtforms.StringField('Step Values', default="50,85")
 
-    def validate_lr_multistep_values(form, field):
-        if form.lr_policy.data == 'multistep':
+    def validate_lr_multistep_values(self, field):
+        if self.lr_policy.data == 'multistep':
             for value in field.data.split(','):
                 try:
                     float(value)
@@ -299,11 +300,11 @@ class ModelForm(Form):
                  "works in caffe or torch." % os.path.pathsep)
     )
 
-    def validate_custom_network_snapshot(form, field):
-        if form.method.data == 'custom':
+    def validate_custom_network_snapshot(self, field):
+        if self.method.data == 'custom':
             for filename in field.data.strip().split(os.path.pathsep):
                 if filename and not os.path.exists(filename):
-                    raise validators.ValidationError('File "%s" does not exist' % filename)
+                    raise validators.ValidationError(f'File "{filename}" does not exist')
 
     # Select one of several GPUs
     select_gpu = wtforms.RadioField(
@@ -343,9 +344,9 @@ class ModelForm(Form):
     # The Flask test framework can't handle SelectMultipleFields correctly
     select_gpus_list = wtforms.StringField('Select which GPU[s] you would like to use (comma separated)')
 
-    def validate_select_gpus(form, field):
-        if form.select_gpus_list.data:
-            field.data = form.select_gpus_list.data.split(',')
+    def validate_select_gpus(self, field):
+        if self.select_gpus_list.data:
+            field.data = self.select_gpus_list.data.split(',')
 
     # Use next available N GPUs
     select_gpu_count = wtforms.IntegerField('Use this many GPUs (next available)',
@@ -356,9 +357,9 @@ class ModelForm(Form):
                                             default=1,
                                             )
 
-    def validate_select_gpu_count(form, field):
-        if field.data is None:
-            if form.select_gpus.data:
+    def validate_select_gpu_count(self, field):
+        if self.select_gpus.data:
+            if field.data is None:
                 # Make this field optional
                 field.errors[:] = []
                 raise validators.StopValidation()

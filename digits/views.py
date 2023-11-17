@@ -150,61 +150,46 @@ def json_dict(job, model_output_fields):
     }
 
     if 'train_db_task' in dir(job):
-        d.update({
-            'backend': job.train_db_task().backend,
-        })
+        d['backend'] = job.train_db_task().backend
 
     if 'train_task' in dir(job):
-        d.update({
-            'framework': job.train_task().get_framework_id(),
-        })
+        d['framework'] = job.train_task().get_framework_id()
 
         for prefix, outputs in (('train', job.train_task().train_outputs),
                                 ('val', job.train_task().val_outputs)):
             for key in outputs.keys():
                 data = outputs[key].data
                 if len(data) > 0:
-                    key = '%s (%s) ' % (key, prefix)
-                    model_output_fields.add(key + 'last')
-                    model_output_fields.add(key + 'min')
-                    model_output_fields.add(key + 'max')
-                    d.update({key + 'last': data[-1]})
-                    d.update({key + 'min': min(data)})
-                    d.update({key + 'max': max(data)})
+                    key = f'{key} ({prefix}) '
+                    model_output_fields.add(f'{key}last')
+                    model_output_fields.add(f'{key}min')
+                    model_output_fields.add(f'{key}max')
+                    d[f'{key}last'] = data[-1]
+                    d[f'{key}min'] = min(data)
+                    d[f'{key}max'] = max(data)
 
         if (job.train_task().combined_graph_data() and
                 'columns' in job.train_task().combined_graph_data()):
-            d.update({
-                'sparkline': job.train_task().combined_graph_data()['columns'][0][1:],
-            })
+            d['sparkline'] = job.train_task().combined_graph_data()['columns'][0][1:]
 
     if 'get_progress' in dir(job):
-        d.update({
-            'progress': int(round(100 * job.get_progress())),
-        })
+        d['progress'] = int(round(100 * job.get_progress()))
 
     if hasattr(job, 'dataset_id'):
-        d.update({
-            'dataset_id': job.dataset_id,
-        })
+        d['dataset_id'] = job.dataset_id
 
     if hasattr(job, 'extension_id'):
-        d.update({
-            'extension': job.extension_id,
-        })
-    else:
-        if hasattr(job, 'dataset_id'):
-            ds = scheduler.get_job(job.dataset_id)
-            if ds and hasattr(ds, 'extension_id'):
-                d.update({
-                    'extension': ds.extension_id,
-                })
+        d['extension'] = job.extension_id
+    elif hasattr(job, 'dataset_id'):
+        ds = scheduler.get_job(job.dataset_id)
+        if ds and hasattr(ds, 'extension_id'):
+            d['extension'] = ds.extension_id
 
     if isinstance(job, dataset.DatasetJob):
-        d.update({'type': 'dataset'})
+        d['type'] = 'dataset'
 
     if isinstance(job, model.ModelJob):
-        d.update({'type': 'model'})
+        d['type'] = 'model'
 
     if isinstance(job, pretrained_model.PretrainedModelJob):
         model_output_fields.add("has_labels")
@@ -280,12 +265,12 @@ def group():
         try:
             job = scheduler.get_job(job_id)
             if job is None:
-                logger.warning('Job %s not found for group assignment.' % job_id)
+                logger.warning(f'Job {job_id} not found for group assignment.')
                 not_found += 1
                 continue
 
             if not utils.auth.has_permission(job, 'edit'):
-                logger.warning('Group assignment not permitted for job %s' % job_id)
+                logger.warning(f'Group assignment not permitted for job {job_id}')
                 forbidden += 1
                 continue
 
@@ -299,8 +284,6 @@ def group():
 
         except Exception as e:
             error.append(e)
-            pass
-
     for job_id in job_ids:
         job = scheduler.get_job(job_id)
 
@@ -311,7 +294,7 @@ def group():
     if forbidden:
         error.append('%d job%s not permitted to be regrouped.' % (forbidden, '' if forbidden == 1 else 's'))
 
-    if len(error) > 0:
+    if error:
         error = ' '.join(error)
         raise werkzeug.exceptions.BadRequest(error)
 
@@ -409,8 +392,10 @@ def edit_job(job_id):
             job.form_data['form.model_name.data'] = name
         else:
             # we are utterly confused
-            raise werkzeug.exceptions.BadRequest('Unable to edit job type %s' % job.job_type())
-        logger.info('Set name to "%s".' % job.name(), job_id=job.id())
+            raise werkzeug.exceptions.BadRequest(
+                f'Unable to edit job type {job.job_type()}'
+            )
+        logger.info(f'Set name to "{job.name()}".', job_id=job.id())
 
     # Edit notes
     if 'job_notes' in flask.request.form:
@@ -420,7 +405,7 @@ def edit_job(job_id):
         job._notes = notes
         logger.info('Updated notes.', job_id=job.id())
 
-    return '%s updated.' % job.job_type()
+    return f'{job.job_type()} updated.'
 
 
 @blueprint.route('/datasets/<job_id>/status', methods=['GET'])
@@ -495,8 +480,6 @@ def delete_jobs():
                 continue
         except Exception as e:
             error.append(str(e))
-            pass
-
     if not_found:
         error.append('%d job%s not found.' % (not_found, '' if not_found == 1 else 's'))
 
@@ -506,7 +489,7 @@ def delete_jobs():
     if failed:
         error.append('%d job%s failed to delete.' % (failed, '' if failed == 1 else 's'))
 
-    if len(error) > 0:
+    if error:
         error = ' '.join(error)
         raise werkzeug.exceptions.BadRequest(error)
 
@@ -542,8 +525,6 @@ def abort_jobs():
 
         except Exception as e:
             errors.append(e)
-            pass
-
     if not_found:
         errors.append('%d job%s not found.' % (not_found, '' if not_found == 1 else 's'))
 
@@ -553,7 +534,7 @@ def abort_jobs():
     if failed:
         errors.append('%d job%s failed to abort.' % (failed, '' if failed == 1 else 's'))
 
-    if len(errors) > 0:
+    if errors:
         raise werkzeug.exceptions.BadRequest(' '.join(errors))
 
     return 'Jobs aborted.'
@@ -614,32 +595,28 @@ def handle_error(e):
     """
     error_type = type(e).__name__
     message = str(e)
-    trace = None
     description = None
     status_code = 500
     if isinstance(e, werkzeug.exceptions.HTTPException):
         status_code = e.code
         description = e.description
-    if app.debug:
-        trace = traceback.format_exc()
-
-    if request_wants_json():
-        details = {
-            'message': message,
-            'type': error_type,
-        }
-        if description is not None:
-            details['description'] = description
-        if trace is not None:
-            details['trace'] = trace.split('\n')
-        return flask.jsonify({'error': details}), status_code
-    else:
+    trace = traceback.format_exc() if app.debug else None
+    if not request_wants_json():
         return flask.render_template('error.html',
                                      title=error_type,
                                      message=message,
                                      description=description,
                                      trace=trace,
                                      ), status_code
+    details = {
+        'message': message,
+        'type': error_type,
+    }
+    if description is not None:
+        details['description'] = description
+    if trace is not None:
+        details['trace'] = trace.split('\n')
+    return flask.jsonify({'error': details}), status_code
 
 # Register this handler for all error codes
 # Necessary for flask<=0.10.1
@@ -676,7 +653,7 @@ def path_autocomplete():
         # Only allow absolute paths by prepending forward slash
         path = os.path.sep + path
 
-    suggestions = [os.path.abspath(p) for p in glob.glob(path + "*")]
+    suggestions = [os.path.abspath(p) for p in glob.glob(f"{path}*")]
     if platform.system() == 'Windows':
         # on windows, convert backslashes with forward slashes
         suggestions = [p.replace('\\', '/') for p in suggestions]
@@ -704,7 +681,7 @@ def extension_static(extension_type, extension_id, filename):
         extension = extensions.data.get_extension(extension_id)
 
     if extension is None:
-        raise ValueError("Unknown extension '%s'" % extension_id)
+        raise ValueError(f"Unknown extension '{extension_id}'")
 
     digits_root = os.path.dirname(os.path.abspath(digits.__file__))
     rootdir = os.path.join(digits_root, *['extensions', 'view', extension.get_dirname(), 'static'])

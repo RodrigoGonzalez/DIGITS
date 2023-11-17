@@ -53,7 +53,7 @@ class Cifar100Downloader(DataDownloader):
                 ('test', 'test'),
         ]:
             filepath = os.path.join(self.outdir, 'cifar-100-python', filename)
-            assert os.path.exists(filepath), 'Expected "%s" to exist' % filename
+            assert os.path.exists(filepath), f'Expected "{filename}" to exist'
 
             self.__extractData(filepath, phase, fine_label_names, coarse_label_names)
 
