@@ -181,8 +181,8 @@ class BaseViewsTestWithDataset(BaseViewsTestWithImageset):
 
         job1_id = self.create_dataset(**options_1)
         assert self.dataset_wait_completion(job1_id) == 'Done', 'first job failed'
-        rv = self.app.get('/datasets/%s.json' % job1_id)
-        assert rv.status_code == 200, 'json load failed with %s' % rv.status_code
+        rv = self.app.get(f'/datasets/{job1_id}.json')
+        assert rv.status_code == 200, f'json load failed with {rv.status_code}'
         content1 = json.loads(rv.data)
 
         # Clone job1 as job2
@@ -192,8 +192,8 @@ class BaseViewsTestWithDataset(BaseViewsTestWithImageset):
 
         job2_id = self.create_dataset(**options_2)
         assert self.dataset_wait_completion(job2_id) == 'Done', 'second job failed'
-        rv = self.app.get('/datasets/%s.json' % job2_id)
-        assert rv.status_code == 200, 'json load failed with %s' % rv.status_code
+        rv = self.app.get(f'/datasets/{job2_id}.json')
+        assert rv.status_code == 200, f'json load failed with {rv.status_code}'
         content2 = json.loads(rv.data)
 
         # These will be different
@@ -219,7 +219,7 @@ class TestViews(BaseViewsTest, test_utils.DatasetMixin):
 
     def test_page_dataset_new(self):
         rv = self.app.get('/datasets/images/classification/new')
-        assert rv.status_code == 200, 'page load failed with %s' % rv.status_code
+        assert rv.status_code == 200, f'page load failed with {rv.status_code}'
         assert 'New Image Classification Dataset' in rv.data, 'unexpected page format'
 
     def test_nonexistent_dataset(self):
@@ -275,16 +275,13 @@ class TestCreation(BaseViewsTestWithImageset, test_utils.DatasetMixin):
         """
         textfile_train_images = ''
         textfile_labels_file = ''
-        label_id = 0
-        for label, images in self.imageset_paths.iteritems():
+        for label_id, (label, images) in enumerate(self.imageset_paths.iteritems()):
             textfile_labels_file += '%s\n' % label
             for image in images:
                 image_path = image
                 if absolute_path:
                     image_path = os.path.join(self.imageset_folder, image_path)
                 textfile_train_images += '%s %d\n' % (image_path, label_id)
-
-            label_id += 1
 
         data = {
             'method': 'textfile',
@@ -324,7 +321,9 @@ class TestCreation(BaseViewsTestWithImageset, test_utils.DatasetMixin):
     def test_abort_explore_fail(self):
         job_id = self.create_dataset()
         self.abort_dataset(job_id)
-        rv = self.app.get('/datasets/images/classification/explore?job_id=%s&db=val' % job_id)
+        rv = self.app.get(
+            f'/datasets/images/classification/explore?job_id={job_id}&db=val'
+        )
         assert rv.status_code == 500, 'page load should have failed'
         assert 'status should be' in rv.data, 'unexpected page format'
 
@@ -359,13 +358,12 @@ class TestImageCount(BaseViewsTestWithImageset, test_utils.DatasetMixin):
             assert len(info['ParseFolderTasks']) == 2, 'expected exactly one ParseFolderTasks'
             parse_info = info['ParseFolderTasks'][1]
             if type == 'val':
-                assert parse_info['train_count'] == 0
                 assert parse_info['test_count'] == 0
                 image_count = parse_info['val_count']
             else:
-                assert parse_info['train_count'] == 0
                 assert parse_info['val_count'] == 0
                 image_count = parse_info['test_count']
+            assert parse_info['train_count'] == 0
         assert self.categoryCount() == parse_info['label_count']
         assert image_count == self.IMAGE_COUNT * parse_info['label_count'], 'image count mismatch'
         assert self.delete_dataset(job_id) == 200, 'delete failed'
@@ -383,17 +381,17 @@ class TestMaxPerClass(BaseViewsTestWithImageset, test_utils.DatasetMixin):
         assert self.IMAGE_COUNT % 2 == 0
         max_per_class = self.IMAGE_COUNT / 2
         data = {'folder_pct_val': 0}
-        if type == 'train':
-            data['folder_train_max_per_class'] = max_per_class
-        if type == 'val':
-            data['has_val_folder'] = 'True'
-            data['folder_val'] = self.imageset_folder
-            data['folder_val_max_per_class'] = max_per_class
-        elif type == 'test':
+        if type == 'test':
             data['has_test_folder'] = 'True'
             data['folder_test'] = self.imageset_folder
             data['folder_test_max_per_class'] = max_per_class
 
+        elif type == 'train':
+            data['folder_train_max_per_class'] = max_per_class
+        elif type == 'val':
+            data['has_val_folder'] = 'True'
+            data['folder_val'] = self.imageset_folder
+            data['folder_val_max_per_class'] = max_per_class
         job_id = self.create_dataset(**data)
         assert self.dataset_wait_completion(job_id) == 'Done', 'create failed'
         info = self.dataset_info(job_id)
@@ -424,17 +422,17 @@ class TestMinPerClass(BaseViewsTestWithImageset, test_utils.DatasetMixin):
         # than available in the "unbalanced" category
         min_per_class = self.IMAGE_COUNT / 2 + 1
         data = {'folder_pct_val': 0}
-        if type == 'train':
-            data['folder_train_min_per_class'] = min_per_class
-        if type == 'val':
-            data['has_val_folder'] = 'True'
-            data['folder_val'] = self.imageset_folder
-            data['folder_val_min_per_class'] = min_per_class
-        elif type == 'test':
+        if type == 'test':
             data['has_test_folder'] = 'True'
             data['folder_test'] = self.imageset_folder
             data['folder_test_min_per_class'] = min_per_class
 
+        elif type == 'train':
+            data['folder_train_min_per_class'] = min_per_class
+        elif type == 'val':
+            data['has_val_folder'] = 'True'
+            data['folder_val'] = self.imageset_folder
+            data['folder_val_min_per_class'] = min_per_class
         job_id = self.create_dataset(**data)
         assert self.dataset_wait_completion(job_id) == 'Done', 'create failed'
         info = self.dataset_info(job_id)
@@ -458,36 +456,35 @@ class TestCreated(BaseViewsTestWithDataset, test_utils.DatasetMixin):
 
     def test_index_json(self):
         rv = self.app.get('/index.json')
-        assert rv.status_code == 200, 'page load failed with %s' % rv.status_code
+        assert rv.status_code == 200, f'page load failed with {rv.status_code}'
         content = json.loads(rv.data)
-        found = False
-        for d in content['datasets']:
-            if d['id'] == self.dataset_id:
-                found = True
-                break
+        found = any(d['id'] == self.dataset_id for d in content['datasets'])
         assert found, 'dataset not found in list'
 
     def test_dataset_json(self):
-        rv = self.app.get('/datasets/%s.json' % self.dataset_id)
-        assert rv.status_code == 200, 'page load failed with %s' % rv.status_code
+        rv = self.app.get(f'/datasets/{self.dataset_id}.json')
+        assert rv.status_code == 200, f'page load failed with {rv.status_code}'
         content = json.loads(rv.data)
         assert content['id'] == self.dataset_id, 'expected different job_id'
 
     def test_mean_dimensions(self):
-        img_url = '/files/%s/mean.jpg' % self.dataset_id
+        img_url = f'/files/{self.dataset_id}/mean.jpg'
         rv = self.app.get(img_url)
-        assert rv.status_code == 200, 'GET on %s returned %s' % (img_url, rv.status_code)
+        assert rv.status_code == 200, f'GET on {img_url} returned {rv.status_code}'
         buff = StringIO(rv.data)
         buff.seek(0)
         pil_image = PIL.Image.open(buff)
-        assert pil_image.size == (self.IMAGE_WIDTH, self.IMAGE_HEIGHT), 'image size is %s' % (pil_image.size,)
+        assert pil_image.size == (
+            self.IMAGE_WIDTH,
+            self.IMAGE_HEIGHT,
+        ), f'image size is {pil_image.size}'
 
     def test_edit_name(self):
         status = self.edit_job(self.dataset_id,
                                name='new name'
                                )
-        assert status == 200, 'failed with %s' % status
-        rv = self.app.get('/datasets/summary?job_id=%s' % self.dataset_id)
+        assert status == 200, f'failed with {status}'
+        rv = self.app.get(f'/datasets/summary?job_id={self.dataset_id}')
         assert rv.status_code == 200
         assert 'new name' in rv.data
 
@@ -496,32 +493,36 @@ class TestCreated(BaseViewsTestWithDataset, test_utils.DatasetMixin):
             self.dataset_id,
             notes='new notes'
         )
-        assert status == 200, 'failed with %s' % status
+        assert status == 200, f'failed with {status}'
 
     def test_backend_selection(self):
-        rv = self.app.get('/datasets/%s.json' % self.dataset_id)
+        rv = self.app.get(f'/datasets/{self.dataset_id}.json')
         content = json.loads(rv.data)
         for task in content['CreateDbTasks']:
             assert task['backend'] == self.BACKEND
 
     def test_explore_train(self):
-        rv = self.app.get('/datasets/images/classification/explore?job_id=%s&db=train' % self.dataset_id)
+        rv = self.app.get(
+            f'/datasets/images/classification/explore?job_id={self.dataset_id}&db=train'
+        )
         if self.BACKEND == 'hdf5':
             # Not supported yet
             assert rv.status_code == 500, 'page load should have failed'
             assert 'expected backend is lmdb' in rv.data, 'unexpected page format'
         else:
-            assert rv.status_code == 200, 'page load failed with %s' % rv.status_code
+            assert rv.status_code == 200, f'page load failed with {rv.status_code}'
             assert 'Items per page' in rv.data, 'unexpected page format'
 
     def test_explore_val(self):
-        rv = self.app.get('/datasets/images/classification/explore?job_id=%s&db=val' % self.dataset_id)
+        rv = self.app.get(
+            f'/datasets/images/classification/explore?job_id={self.dataset_id}&db=val'
+        )
         if self.BACKEND == 'hdf5':
             # Not supported yet
             assert rv.status_code == 500, 'page load should have failed'
             assert 'expected backend is lmdb' in rv.data, 'unexpected page format'
         else:
-            assert rv.status_code == 200, 'page load failed with %s' % rv.status_code
+            assert rv.status_code == 200, f'page load failed with {rv.status_code}'
             assert 'Items per page' in rv.data, 'unexpected page format'
 
 
@@ -554,7 +555,7 @@ class TestCreatedHdf5(TestCreated, test_utils.DatasetMixin):
     BACKEND = 'hdf5'
 
     def test_compression_method(self):
-        rv = self.app.get('/datasets/%s.json' % self.dataset_id)
+        rv = self.app.get(f'/datasets/{self.dataset_id}.json')
         content = json.loads(rv.data)
         for task in content['CreateDbTasks']:
             assert task['compression'] == self.COMPRESSION

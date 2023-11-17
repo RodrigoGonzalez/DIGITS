@@ -51,8 +51,8 @@ class PretrainedModelJob(Job):
         python_layer_file_name = 'digits_python_layers.py'
         if os.path.exists(os.path.join(tmp_dir, python_layer_file_name)):
             return os.path.join(tmp_dir, python_layer_file_name)
-        elif os.path.exists(os.path.join(tmp_dir, python_layer_file_name + 'c')):
-            return os.path.join(tmp_dir, python_layer_file_name + 'c')
+        elif os.path.exists(os.path.join(tmp_dir, f'{python_layer_file_name}c')):
+            return os.path.join(tmp_dir, f'{python_layer_file_name}c')
         else:
             return None
 
@@ -71,10 +71,7 @@ class PretrainedModelJob(Job):
     def __getstate__(self):
         fields_to_save = ['_id', '_name', 'username', 'tasks', 'status_history', 'framework', 'image_info']
         full_state = super(PretrainedModelJob, self).__getstate__()
-        state_to_save = {}
-        for field in fields_to_save:
-            state_to_save[field] = full_state[field]
-        return state_to_save
+        return {field: full_state[field] for field in fields_to_save}
 
     @override
     def __setstate__(self, state):

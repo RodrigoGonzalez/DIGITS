@@ -36,13 +36,11 @@ class Visualization(VisualizationInterface):
         else:
             self.class_labels = None
 
-        # memorize alphabet
-        if 'alphabet' in dataset.extension_userdata:
-            self.alphabet = dataset.extension_userdata['alphabet']
-            self.alphabet_len = len(self.alphabet)
-        else:
+        if 'alphabet' not in dataset.extension_userdata:
             raise RuntimeError("No alphabet found in dataset")
 
+        self.alphabet = dataset.extension_userdata['alphabet']
+        self.alphabet_len = len(self.alphabet)
         # view options
         self.max_classes = kwargs['max_classes']
 

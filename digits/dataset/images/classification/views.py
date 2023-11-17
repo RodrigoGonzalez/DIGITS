@@ -33,18 +33,10 @@ def from_folders(job, form):
     """
     job.labels_file = utils.constants.LABELS_FILE
 
-    # Add ParseFolderTask
-
-    percent_val = form.folder_pct_val.data
     val_parents = []
-    if form.has_val_folder.data:
-        percent_val = 0
-
-    percent_test = form.folder_pct_test.data
+    percent_val = 0 if form.has_val_folder.data else form.folder_pct_val.data
     test_parents = []
-    if form.has_test_folder.data:
-        percent_test = 0
-
+    percent_test = 0 if form.has_test_folder.data else form.folder_pct_test.data
     min_per_class = form.folder_train_min_per_class.data
     max_per_class = form.folder_train_max_per_class.data
 

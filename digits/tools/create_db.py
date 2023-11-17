@@ -163,8 +163,8 @@ class Hdf5Writer(DbWriter):
 
     def _create_new_file(self, initial_count):
         assert self._max_count is None or initial_count <= self._max_count, \
-            'Your batch size is too large for your dataset limit - %d vs %d' % \
-            (initial_count, self._max_count)
+                'Your batch size is too large for your dataset limit - %d vs %d' % \
+                (initial_count, self._max_count)
 
         # close the old file
         if self._db is not None:
@@ -175,8 +175,9 @@ class Hdf5Writer(DbWriter):
 
         # get the filename
         filename = self._new_filename()
-        logger.info('Creating HDF5 database at "%s" ...' %
-                    os.path.join(*filename.split(os.sep)[-2:]))
+        logger.info(
+            f'Creating HDF5 database at "{os.path.join(*filename.split(os.sep)[-2:])}" ...'
+        )
 
         # update the list
         with open(self._list_filename(), mode) as outfile:
@@ -201,7 +202,7 @@ class Hdf5Writer(DbWriter):
         return os.path.join(self._dir, self.LIST_FILENAME)
 
     def _new_filename(self):
-        return '%s.h5' % self.count()
+        return f'{self.count()}.h5'
 
 
 def create_db(input_file, output_dir,
@@ -252,13 +253,13 @@ def create_db(input_file, output_dir,
     if mean_files:
         for mean_file in mean_files:
             if os.path.exists(mean_file):
-                logger.warning('overwriting existing mean file "%s"!' % mean_file)
+                logger.warning(f'overwriting existing mean file "{mean_file}"!')
             else:
                 dirname = os.path.dirname(mean_file)
                 if not dirname:
                     dirname = '.'
                 if not os.path.exists(dirname):
-                    raise ValueError('Cannot save mean file at "%s"' % mean_file)
+                    raise ValueError(f'Cannot save mean file at "{mean_file}"')
     compute_mean = bool(mean_files)
 
     # Load lines from input_file into a load_queue
@@ -268,9 +269,14 @@ def create_db(input_file, output_dir,
 
     # Start some load threads
 
-    batch_size = _calculate_batch_size(image_count,
-                                       bool(backend == 'hdf5'), kwargs.get('hdf5_dset_limit'),
-                                       image_channels, image_height, image_width)
+    batch_size = _calculate_batch_size(
+        image_count,
+        backend == 'hdf5',
+        kwargs.get('hdf5_dset_limit'),
+        image_channels,
+        image_height,
+        image_width,
+    )
     num_threads = _calculate_num_threads(batch_size, shuffle)
     write_queue = Queue.Queue(2 * batch_size)
     summary_queue = Queue.Queue()
@@ -369,11 +375,11 @@ def _create_lmdb(image_count, write_queue, batch_size, output_dir,
 
     if images_loaded == 0:
         raise LoadError('no images loaded from input file')
-    logger.debug('%s images loaded' % images_loaded)
+    logger.debug(f'{images_loaded} images loaded')
 
     if images_written == 0:
         raise WriteError('no images written to database')
-    logger.info('%s images written to database' % images_written)
+    logger.info(f'{images_written} images written to database')
 
     if compute_mean:
         _save_means(image_sum, images_written, mean_files)
@@ -452,11 +458,11 @@ def _create_hdf5(image_count, write_queue, batch_size, output_dir,
 
     if images_loaded == 0:
         raise LoadError('no images loaded from input file')
-    logger.debug('%s images loaded' % images_loaded)
+    logger.debug(f'{images_loaded} images loaded')
 
     if images_written == 0:
         raise WriteError('no images written to database')
-    logger.info('%s images written to database' % images_written)
+    logger.info(f'{images_written} images written to database')
 
     if compute_mean:
         _save_means(image_sum, images_written, mean_files)
@@ -497,10 +503,10 @@ def _fill_load_queue(filename, queue, shuffle):
                 except ParseLineError:
                     pass
 
-    logger.debug('%s total lines in file' % total_lines)
+    logger.debug(f'{total_lines} total lines in file')
     if valid_lines == 0:
         raise BadInputFileError('No valid lines in input file')
-    logger.info('%s valid lines in file' % valid_lines)
+    logger.info(f'{valid_lines} valid lines in file')
 
     for key in sorted(distribution):
         logger.debug('Category %s has %d images.' % (key, distribution[key]))
@@ -544,12 +550,7 @@ def _calculate_num_threads(batch_size, shuffle):
     """
     Calculates an appropriate number of threads for creating this database
     """
-    if shuffle:
-        return min(10, int(round(math.sqrt(batch_size))))
-    else:
-        # XXX This is the only way to preserve order for now
-        # This obviously hurts performance considerably
-        return 1
+    return min(10, int(round(math.sqrt(batch_size)))) if shuffle else 1
 
 
 def _load_thread(load_queue, write_queue, summary_queue,
@@ -580,7 +581,7 @@ def _load_thread(load_queue, write_queue, summary_queue,
         try:
             image = utils.image.load_image(path)
         except utils.errors.LoadImageError as e:
-            logger.warning('[%s %s] %s: %s' % (path, label, type(e).__name__, e))
+            logger.warning(f'[{path} {label}] {type(e).__name__}: {e}')
             continue
 
         image = utils.image.resize_image(image,
@@ -630,14 +631,11 @@ def _array_to_datum(image, label, encoding):
             # Add a channels axis
             image = image[np.newaxis, :, :]
         else:
-            raise Exception('Image has unrecognized shape: "%s"' % image.shape)
+            raise Exception(f'Image has unrecognized shape: "{image.shape}"')
         datum = caffe.io.array_to_datum(image, label)
     else:
         datum = caffe_pb2.Datum()
-        if image.ndim == 3:
-            datum.channels = image.shape[2]
-        else:
-            datum.channels = 1
+        datum.channels = image.shape[2] if image.ndim == 3 else 1
         datum.height = image.shape[0]
         datum.width = image.shape[1]
         datum.label = label
@@ -673,7 +671,7 @@ def _write_batch_lmdb(db, batch, image_count):
         except AttributeError as e:
             version = tuple(int(x) for x in lmdb.__version__.split('.'))
             if version < (0, 87):
-                raise Error('py-lmdb is out of date (%s vs 0.87)' % lmdb.__version__)
+                raise Error(f'py-lmdb is out of date ({lmdb.__version__} vs 0.87)')
             else:
                 raise e
         # try again
@@ -690,7 +688,6 @@ def _save_means(image_sum, image_count, mean_files):
             np.save(mean_file, mean)
         elif mean_file.lower().endswith('.binaryproto'):
             data = mean
-            # Transform to caffe's format requirements
             if data.ndim == 3:
                 # Transpose to (channels, height, width)
                 data = data.transpose((2, 0, 1))
@@ -698,7 +695,7 @@ def _save_means(image_sum, image_count, mean_files):
                     # channel swap
                     # XXX see issue #59
                     data = data[[2, 1, 0], ...]
-            elif mean.ndim == 2:
+            elif data.ndim == 2:
                 # Add a channels axis
                 data = data[np.newaxis, :, :]
 
@@ -713,10 +710,10 @@ def _save_means(image_sum, image_count, mean_files):
             image = PIL.Image.fromarray(mean)
             image.save(mean_file)
         else:
-            logger.warning('Unrecognized file extension for mean file: "%s"' % mean_file)
+            logger.warning(f'Unrecognized file extension for mean file: "{mean_file}"')
             continue
 
-        logger.info('Mean saved at "%s"' % mean_file)
+        logger.info(f'Mean saved at "{mean_file}"')
 
 
 if __name__ == '__main__':
@@ -792,5 +789,5 @@ if __name__ == '__main__':
                   hdf5_dset_limit=args['hdf5_dset_limit'],
                   )
     except Exception as e:
-        logger.error('%s: %s' % (type(e).__name__, e.message))
+        logger.error(f'{type(e).__name__}: {e.message}')
         raise

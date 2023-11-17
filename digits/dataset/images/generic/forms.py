@@ -26,18 +26,14 @@ class GenericImageDatasetForm(ImageDatasetForm):
         default='prebuilt',
     )
 
-    def validate_lmdb_path(form, field):
-        if not field.data:
-            pass
-        else:
+    def validate_lmdb_path(self, field):
+        if field.data:
             # make sure the filesystem path exists
             if not os.path.exists(field.data) or not os.path.isdir(field.data):
                 raise validators.ValidationError('Folder does not exist')
 
-    def validate_file_path(form, field):
-        if not field.data:
-            pass
-        else:
+    def validate_file_path(self, field):
+        if field.data:
             # make sure the filesystem path exists
             if not os.path.exists(field.data) or not os.path.isfile(field.data):
                 raise validators.ValidationError('File does not exist')

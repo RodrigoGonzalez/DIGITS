@@ -54,15 +54,11 @@ class CreateDbTask(Task):
             # the list of hdf5 files is stored in a textfile
             self.textfile = os.path.join(self.db_name, 'list.txt')
         self.image_dims = image_dims
-        if image_dims[2] == 3:
-            self.image_channel_order = 'BGR'
-        else:
-            self.image_channel_order = None
-
+        self.image_channel_order = 'BGR' if image_dims[2] == 3 else None
         self.entries_count = None
         self.entries_error = None
         self.distribution = None
-        self.create_db_log_file = "create_%s.log" % db_name
+        self.create_db_log_file = f"create_{db_name}.log"
 
     def __getstate__(self):
         d = super(CreateDbTask, self).__getstate__()
@@ -85,10 +81,7 @@ class CreateDbTask(Task):
                 self.image_channel_order = 'RGB'
         if self.pickver_task_createdb <= 2:
             if hasattr(self, 'encode'):
-                if self.encode:
-                    self.encoding = 'jpg'
-                else:
-                    self.encoding = 'none'
+                self.encoding = 'jpg' if self.encode else 'none'
                 delattr(self, 'encode')
             else:
                 self.encoding = 'none'
@@ -116,7 +109,7 @@ class CreateDbTask(Task):
         elif self.db_name == utils.constants.TEST_DB or 'test' in self.db_name.lower():
             return 'Create DB (test)'
         else:
-            return 'Create DB (%s)' % self.db_name
+            return f'Create DB ({self.db_name})'
 
     @override
     def before_run(self):
@@ -139,37 +132,45 @@ class CreateDbTask(Task):
         key = 'create_db_task_pool'
         if key not in resources:
             return None
-        for resource in resources[key]:
-            if resource.remaining() >= 1:
-                return {key: [(resource.identifier, 1)]}
-        return None
+        return next(
+            (
+                {key: [(resource.identifier, 1)]}
+                for resource in resources[key]
+                if resource.remaining() >= 1
+            ),
+            None,
+        )
 
     @override
     def task_arguments(self, resources, env):
-        args = [sys.executable, os.path.join(
-            os.path.dirname(os.path.abspath(digits.__file__)),
-            'tools', 'create_db.py'),
+        args = [
+            sys.executable,
+            os.path.join(
+                os.path.dirname(os.path.abspath(digits.__file__)),
+                'tools',
+                'create_db.py',
+            ),
             self.path(self.input_file),
             self.path(self.db_name),
             self.image_dims[1],
             self.image_dims[0],
-            '--backend=%s' % self.backend,
-            '--channels=%s' % self.image_dims[2],
-            '--resize_mode=%s' % self.resize_mode,
+            f'--backend={self.backend}',
+            f'--channels={self.image_dims[2]}',
+            f'--resize_mode={self.resize_mode}',
         ]
 
         if self.mean_file is not None:
-            args.append('--mean_file=%s' % self.path(self.mean_file))
+            args.append(f'--mean_file={self.path(self.mean_file)}')
             # Add a visual mean_file
-            args.append('--mean_file=%s' % self.path(utils.constants.MEAN_FILE_IMAGE))
+            args.append(f'--mean_file={self.path(utils.constants.MEAN_FILE_IMAGE)}')
         if self.image_folder:
-            args.append('--image_folder=%s' % self.image_folder)
+            args.append(f'--image_folder={self.image_folder}')
         if self.shuffle:
             args.append('--shuffle')
         if self.encoding and self.encoding != 'none':
-            args.append('--encoding=%s' % self.encoding)
+            args.append(f'--encoding={self.encoding}')
         if self.compression and self.compression != 'none':
-            args.append('--compression=%s' % self.compression)
+            args.append(f'--compression={self.compression}')
         if self.backend == 'hdf5':
             args.append('--hdf5_dset_limit=%d' % 2**31)
 
@@ -204,9 +205,7 @@ class CreateDbTask(Task):
             self.update_distribution_graph()
             return True
 
-        # add errors to the distribution
-        match = re.match(r'\[(.+) (\d+)\] LoadImageError: (.+)', message)
-        if match:
+        if match := re.match(r'\[(.+) (\d+)\] LoadImageError: (.+)', message):
             self.distribution[match.group(2)]['count'] -= 1
             self.distribution[match.group(2)]['error_count'] += 1
             if self.entries_error is None:
@@ -215,18 +214,16 @@ class CreateDbTask(Task):
             self.update_distribution_graph()
             return True
 
-        # result
-        match = re.match(r'(\d+) images written to database', message)
-        if match:
+        if match := re.match(r'(\d+) images written to database', message):
             self.entries_count = int(match.group(1))
             self.logger.debug(message)
             return True
 
         if level == 'warning':
-            self.logger.warning('%s: %s' % (self.name(), message))
+            self.logger.warning(f'{self.name()}: {message}')
             return True
         if level in ['error', 'critical']:
-            self.logger.error('%s: %s' % (self.name(), message))
+            self.logger.error(f'{self.name()}: {message}')
             self.exception = message
             return True
 
@@ -287,11 +284,10 @@ class CreateDbTask(Task):
         labels = []
         with open(self.path(self.labels_file)) as infile:
             for line in infile:
-                label = line.strip()
-                if label:
+                if label := line.strip():
                     labels.append(label)
 
-        assert len(labels) > 0, 'no labels in labels_file'
+        assert labels, 'no labels in labels_file'
 
         self._labels = labels
         return self._labels
@@ -346,9 +342,7 @@ class CreateDbTask(Task):
 
     def update_distribution_graph(self):
         from digits.webapp import socketio
-        data = self.distribution_data()
-
-        if data:
+        if data := self.distribution_data():
             socketio.emit('task update',
                           {
                               'task': self.html_id(),

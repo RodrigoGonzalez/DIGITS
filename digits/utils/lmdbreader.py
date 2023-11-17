@@ -28,6 +28,4 @@ class DbReader(object):
         Generator returning all entries in the DB
         """
         with self._db.begin() as txn:
-            cursor = txn.cursor()
-            for item in cursor:
-                yield item
+            yield from txn.cursor()

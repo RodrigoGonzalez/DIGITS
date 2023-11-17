@@ -182,11 +182,10 @@ class TrainTask(Task):
         devices = []
         if gpus is not None:
             for index in gpus:
-                device = device_query.get_device(index)
-                if device:
+                if device := device_query.get_device(index):
                     devices.append((index, device))
                 else:
-                    raise RuntimeError('Failed to load gpu information for GPU #"%s"' % index)
+                    raise RuntimeError(f'Failed to load gpu information for GPU #"{index}"')
 
         # this thread continues until killed in after_run()
         while True:
@@ -259,9 +258,7 @@ class TrainTask(Task):
 
         self.logger.debug('Training %s%% complete.' % round(100 * self.current_epoch / self.train_epochs, 2))
 
-        # loss graph data
-        data = self.combined_graph_data()
-        if data:
+        if data := self.combined_graph_data():
             socketio.emit('task update',
                           {
                               'task': self.html_id(),
@@ -286,9 +283,7 @@ class TrainTask(Task):
                               room='job_management',
                               )
 
-        # lr graph data
-        data = self.lr_graph_data()
-        if data:
+        if data := self.lr_graph_data():
             socketio.emit('task update',
                           {
                               'task': self.html_id(),
@@ -308,9 +303,7 @@ class TrainTask(Task):
         if not self.save_output(self.val_outputs, *args):
             return
 
-        # loss graph data
-        data = self.combined_graph_data()
-        if data:
+        if data := self.combined_graph_data():
             socketio.emit('task update',
                           {
                               'task': self.html_id(),
@@ -334,8 +327,6 @@ class TrainTask(Task):
         """
         # don't let them be unicode
         name = str(name)
-        kind = str(kind)
-
         # update d['epoch']
         if 'epoch' not in d:
             d['epoch'] = NetworkOutput('Epoch', [self.current_epoch])
@@ -343,6 +334,8 @@ class TrainTask(Task):
             d['epoch'].data.append(self.current_epoch)
 
         if name not in d:
+            kind = str(kind)
+
             d[name] = NetworkOutput(kind, [])
         epoch_len = len(d['epoch'].data)
         name_len = len(d[name].data)
@@ -387,7 +380,7 @@ class TrainTask(Task):
         """
         Returns an array of arrays for creating an HTML select field
         """
-        return [[s[1], 'Epoch #%s' % s[1]] for s in reversed(self.snapshots)]
+        return [[s[1], f'Epoch #{s[1]}'] for s in reversed(self.snapshots)]
 
     def est_next_snapshot(self):
         """
@@ -470,18 +463,17 @@ class TrainTask(Task):
 
         assert hasattr(self.dataset, 'labels_file'), 'labels_file not set'
         assert self.dataset.labels_file, 'labels_file not set'
-        assert os.path.exists(self.dataset.path(self.dataset.labels_file)), 'labels_file does not exist: {}'.format(
+        assert os.path.exists(
             self.dataset.path(self.dataset.labels_file)
-        )
+        ), f'labels_file does not exist: {self.dataset.path(self.dataset.labels_file)}'
 
         labels = []
         with open(self.dataset.path(self.dataset.labels_file)) as infile:
             for line in infile:
-                label = line.strip()
-                if label:
+                if label := line.strip():
                     labels.append(label)
 
-        assert len(labels) > 0, 'no labels in labels_file'
+        assert labels, 'no labels in labels_file'
 
         self._labels = labels
         return self._labels
@@ -529,17 +521,12 @@ class TrainTask(Task):
         added_val_data = False
 
         if self.train_outputs and 'epoch' in self.train_outputs:
-            if cull:
-                # max 200 data points
-                stride = max(len(self.train_outputs['epoch'].data) / 100, 1)
-            else:
-                # return all data
-                stride = 1
+            stride = max(len(self.train_outputs['epoch'].data) / 100, 1) if cull else 1
             for name, output in self.train_outputs.iteritems():
                 if name not in ['epoch', 'learning_rate']:
-                    col_id = '%s-train' % name
+                    col_id = f'{name}-train'
                     data['xs'][col_id] = 'train_epochs'
-                    data['names'][col_id] = '%s (train)' % name
+                    data['names'][col_id] = f'{name} (train)'
                     if 'accuracy' in output.kind.lower() or 'accuracy' in name.lower():
                         data['columns'].append([col_id] + [
                             (100 * x if x is not None else 'none')
@@ -554,17 +541,12 @@ class TrainTask(Task):
             data['columns'].append(['train_epochs'] + self.train_outputs['epoch'].data[::stride])
 
         if self.val_outputs and 'epoch' in self.val_outputs:
-            if cull:
-                # max 200 data points
-                stride = max(len(self.val_outputs['epoch'].data) / 100, 1)
-            else:
-                # return all data
-                stride = 1
+            stride = max(len(self.val_outputs['epoch'].data) / 100, 1) if cull else 1
             for name, output in self.val_outputs.iteritems():
                 if name not in ['epoch']:
-                    col_id = '%s-val' % name
+                    col_id = f'{name}-val'
                     data['xs'][col_id] = 'val_epochs'
-                    data['names'][col_id] = '%s (val)' % name
+                    data['names'][col_id] = f'{name} (val)'
                     if 'accuracy' in output.kind.lower() or 'accuracy' in name.lower():
                         data['columns'].append([col_id] + [
                             (100 * x if x is not None else 'none')
@@ -578,12 +560,7 @@ class TrainTask(Task):
         if added_val_data:
             data['columns'].append(['val_epochs'] + self.val_outputs['epoch'].data[::stride])
 
-        if added_train_data:
-            return data
-        else:
-            # return None if only validation data exists
-            # helps with ordering of columns in graph
-            return None
+        return data if added_train_data else None
 
     # return id of framework used for training
     def get_framework_id(self):

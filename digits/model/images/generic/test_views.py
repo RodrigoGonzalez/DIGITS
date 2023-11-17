@@ -241,7 +241,7 @@ class BaseTestViews(BaseViewsTest):
 
     def test_page_model_new(self):
         rv = self.app.get('/models/images/generic/new')
-        assert rv.status_code == 200, 'page load failed with %s' % rv.status_code
+        assert rv.status_code == 200, f'page load failed with {rv.status_code}'
         assert 'New Image Model' in rv.data, 'unexpected page format'
 
     def test_nonexistent_model(self):
@@ -249,13 +249,14 @@ class BaseTestViews(BaseViewsTest):
 
     def test_view_config(self):
         extension = extensions.view.get_default_extension()
-        rv = self.app.get('/models/view-config/%s' % extension.get_id())
-        assert rv.status_code == 200, 'page load failed with %s' % rv.status_code
+        rv = self.app.get(f'/models/view-config/{extension.get_id()}')
+        assert rv.status_code == 200, f'page load failed with {rv.status_code}'
 
     def test_visualize_network(self):
-        rv = self.app.post('/models/visualize-network?framework=' + self.FRAMEWORK,
-                           data={'custom_network': self.network()}
-                           )
+        rv = self.app.post(
+            f'/models/visualize-network?framework={self.FRAMEWORK}',
+            data={'custom_network': self.network()},
+        )
         s = BeautifulSoup(rv.data, 'html.parser')
         body = s.select('body')
         if rv.status_code != 200:
@@ -296,16 +297,16 @@ class BaseTestCreation(BaseViewsTestWithDataset):
     def test_snapshot_interval_2(self):
         job_id = self.create_model(snapshot_interval=0.5)
         assert self.model_wait_completion(job_id) == 'Done', 'create failed'
-        rv = self.app.get('/models/%s.json' % job_id)
-        assert rv.status_code == 200, 'json load failed with %s' % rv.status_code
+        rv = self.app.get(f'/models/{job_id}.json')
+        assert rv.status_code == 200, f'json load failed with {rv.status_code}'
         content = json.loads(rv.data)
         assert len(content['snapshots']) > 1, 'should take >1 snapshot'
 
     def test_snapshot_interval_0_5(self):
         job_id = self.create_model(train_epochs=4, snapshot_interval=2)
         assert self.model_wait_completion(job_id) == 'Done', 'create failed'
-        rv = self.app.get('/models/%s.json' % job_id)
-        assert rv.status_code == 200, 'json load failed with %s' % rv.status_code
+        rv = self.app.get(f'/models/{job_id}.json')
+        assert rv.status_code == 200, f'json load failed with {rv.status_code}'
         content = json.loads(rv.data)
         assert len(content['snapshots']) == 2, 'should take 2 snapshots'
 
@@ -354,11 +355,11 @@ class BaseTestCreation(BaseViewsTestWithDataset):
             image_upload = (StringIO(infile.read()), 'image.png')
 
         rv = self.app.post(
-            '/models/images/generic/infer_one?job_id=%s' % job_id,
+            f'/models/images/generic/infer_one?job_id={job_id}',
             data={
                 'image_file': image_upload,
                 'show_visualizations': 'y',
-            }
+            },
         )
         s = BeautifulSoup(rv.data, 'html.parser')
         body = s.select('body')
@@ -385,17 +386,16 @@ class BaseTestCreation(BaseViewsTestWithDataset):
     def test_retrain(self):
         job1_id = self.create_model()
         assert self.model_wait_completion(job1_id) == 'Done', 'first job failed'
-        rv = self.app.get('/models/%s.json' % job1_id)
-        assert rv.status_code == 200, 'json load failed with %s' % rv.status_code
+        rv = self.app.get(f'/models/{job1_id}.json')
+        assert rv.status_code == 200, f'json load failed with {rv.status_code}'
         content = json.loads(rv.data)
         assert len(content['snapshots']), 'should have at least snapshot'
 
         options = {
             'method': 'previous',
             'previous_networks': job1_id,
+            f'{job1_id}-snapshot': content['snapshots'][-1],
         }
-        options['%s-snapshot' % job1_id] = content['snapshots'][-1]
-
         job2_id = self.create_model(**options)
         assert self.model_wait_completion(job2_id) == 'Done', 'second job failed'
 
@@ -403,22 +403,22 @@ class BaseTestCreation(BaseViewsTestWithDataset):
         # retrain from a job which already had a pretrained model
         job1_id = self.create_model()
         assert self.model_wait_completion(job1_id) == 'Done', 'first job failed'
-        rv = self.app.get('/models/%s.json' % job1_id)
-        assert rv.status_code == 200, 'json load failed with %s' % rv.status_code
+        rv = self.app.get(f'/models/{job1_id}.json')
+        assert rv.status_code == 200, f'json load failed with {rv.status_code}'
         content = json.loads(rv.data)
         assert len(content['snapshots']), 'should have at least snapshot'
         options_2 = {
             'method': 'previous',
             'previous_networks': job1_id,
+            f'{job1_id}-snapshot': content['snapshots'][-1],
         }
-        options_2['%s-snapshot' % job1_id] = content['snapshots'][-1]
         job2_id = self.create_model(**options_2)
         assert self.model_wait_completion(job2_id) == 'Done', 'second job failed'
         options_3 = {
             'method': 'previous',
             'previous_networks': job2_id,
+            f'{job2_id}-snapshot': -1,
         }
-        options_3['%s-snapshot' % job2_id] = -1
         job3_id = self.create_model(**options_3)
         assert self.model_wait_completion(job3_id) == 'Done', 'third job failed'
 
@@ -457,8 +457,8 @@ class BaseTestCreation(BaseViewsTestWithDataset):
 
         job1_id = self.create_model(**options_1)
         assert self.model_wait_completion(job1_id) == 'Done', 'first job failed'
-        rv = self.app.get('/models/%s.json' % job1_id)
-        assert rv.status_code == 200, 'json load failed with %s' % rv.status_code
+        rv = self.app.get(f'/models/{job1_id}.json')
+        assert rv.status_code == 200, f'json load failed with {rv.status_code}'
         content1 = json.loads(rv.data)
 
         # Clone job1 as job2
@@ -468,8 +468,8 @@ class BaseTestCreation(BaseViewsTestWithDataset):
 
         job2_id = self.create_model(**options_2)
         assert self.model_wait_completion(job2_id) == 'Done', 'second job failed'
-        rv = self.app.get('/models/%s.json' % job2_id)
-        assert rv.status_code == 200, 'json load failed with %s' % rv.status_code
+        rv = self.app.get(f'/models/{job2_id}.json')
+        assert rv.status_code == 200, f'json load failed with {rv.status_code}'
         content2 = json.loads(rv.data)
 
         # These will be different
@@ -513,24 +513,20 @@ class BaseTestCreatedWithAnyDataset(BaseViewsTestWithModelWithAnyDataset):
             yield self.check_download, extension
 
     def check_download(self, extension):
-        url = '/models/%s/download.%s' % (self.model_id, extension)
+        url = f'/models/{self.model_id}/download.{extension}'
         rv = self.app.get(url)
-        assert rv.status_code == 200, 'download "%s" failed with %s' % (url, rv.status_code)
+        assert rv.status_code == 200, f'download "{url}" failed with {rv.status_code}'
 
     def test_index_json(self):
         rv = self.app.get('/index.json')
-        assert rv.status_code == 200, 'page load failed with %s' % rv.status_code
+        assert rv.status_code == 200, f'page load failed with {rv.status_code}'
         content = json.loads(rv.data)
-        found = False
-        for m in content['models']:
-            if m['id'] == self.model_id:
-                found = True
-                break
+        found = any(m['id'] == self.model_id for m in content['models'])
         assert found, 'model not found in list'
 
     def test_model_json(self):
-        rv = self.app.get('/models/%s.json' % self.model_id)
-        assert rv.status_code == 200, 'page load failed with %s' % rv.status_code
+        rv = self.app.get(f'/models/{self.model_id}.json')
+        assert rv.status_code == 200, f'page load failed with {rv.status_code}'
         content = json.loads(rv.data)
         assert content['id'] == self.model_id, 'expected different job_id'
         assert len(content['snapshots']) > 0, 'no snapshots in list'
@@ -540,14 +536,14 @@ class BaseTestCreatedWithAnyDataset(BaseViewsTestWithModelWithAnyDataset):
             self.dataset_id,
             name='new name'
         )
-        assert status == 200, 'failed with %s' % status
+        assert status == 200, f'failed with {status}'
 
     def test_edit_notes(self):
         status = self.edit_job(
             self.dataset_id,
             notes='new notes'
         )
-        assert status == 200, 'failed with %s' % status
+        assert status == 200, f'failed with {status}'
 
     def test_infer_one(self):
         image_path = os.path.join(self.imageset_folder, self.test_image)
@@ -556,11 +552,11 @@ class BaseTestCreatedWithAnyDataset(BaseViewsTestWithModelWithAnyDataset):
             image_upload = (StringIO(infile.read()), 'image.png')
 
         rv = self.app.post(
-            '/models/images/generic/infer_one?job_id=%s' % self.model_id,
+            f'/models/images/generic/infer_one?job_id={self.model_id}',
             data={
                 'image_file': image_upload,
                 'show_visualizations': 'y',
-            }
+            },
         )
         s = BeautifulSoup(rv.data, 'html.parser')
         body = s.select('body')
@@ -573,16 +569,17 @@ class BaseTestCreatedWithAnyDataset(BaseViewsTestWithModelWithAnyDataset):
             image_upload = (StringIO(infile.read()), 'image.png')
 
         rv = self.app.post(
-            '/models/images/generic/infer_one.json?job_id=%s' % self.model_id,
+            f'/models/images/generic/infer_one.json?job_id={self.model_id}',
             data={
                 'image_file': image_upload,
-            }
+            },
         )
-        assert rv.status_code == 200, 'POST failed with %s' % rv.status_code
+        assert rv.status_code == 200, f'POST failed with {rv.status_code}'
         data = json.loads(rv.data)
-        assert data['outputs']['output'][0][0] > 0 and \
-            data['outputs']['output'][0][1] > 0, \
-            'image regression result is wrong: %s' % data['outputs']['output']
+        assert (
+            data['outputs']['output'][0][0] > 0
+            and data['outputs']['output'][0][1] > 0
+        ), f"image regression result is wrong: {data['outputs']['output']}"
 
     def test_infer_many(self):
         # use the same image twice to make a list of two images
@@ -592,8 +589,8 @@ class BaseTestCreatedWithAnyDataset(BaseViewsTestWithModelWithAnyDataset):
         file_upload = (StringIO(textfile_images), 'images.txt')
 
         rv = self.app.post(
-            '/models/images/generic/infer_many?job_id=%s' % self.model_id,
-            data={'image_list': file_upload}
+            f'/models/images/generic/infer_many?job_id={self.model_id}',
+            data={'image_list': file_upload},
         )
         s = BeautifulSoup(rv.data, 'html.parser')
         body = s.select('body')
@@ -605,8 +602,8 @@ class BaseTestCreatedWithAnyDataset(BaseViewsTestWithModelWithAnyDataset):
         if self.val_db_path is None:
             raise unittest.SkipTest('Class has no validation db')
         rv = self.app.post(
-            '/models/images/generic/infer_db?job_id=%s' % self.model_id,
-            data={'db_path': self.val_db_path}
+            f'/models/images/generic/infer_db?job_id={self.model_id}',
+            data={'db_path': self.val_db_path},
         )
         s = BeautifulSoup(rv.data, 'html.parser')
         body = s.select('body')
@@ -625,10 +622,12 @@ class BaseTestCreatedWithAnyDataset(BaseViewsTestWithModelWithAnyDataset):
         extension_id = extension.get_id()
 
         rv = self.app.post(
-            '/models/images/generic/infer_many?job_id=%s' % self.model_id,
-            data={'image_list': file_upload,
-                  'image_folder': os.path.dirname(self.test_image),
-                  'view_extension_id': extension_id}
+            f'/models/images/generic/infer_many?job_id={self.model_id}',
+            data={
+                'image_list': file_upload,
+                'image_folder': os.path.dirname(self.test_image),
+                'view_extension_id': extension_id,
+            },
         )
         s = BeautifulSoup(rv.data, 'html.parser')
         body = s.select('body')
@@ -643,10 +642,10 @@ class BaseTestCreatedWithAnyDataset(BaseViewsTestWithModelWithAnyDataset):
         file_upload = (StringIO(textfile_images), 'images.txt')
 
         rv = self.app.post(
-            '/models/images/generic/infer_many.json?job_id=%s' % self.model_id,
-            data={'image_list': file_upload}
+            f'/models/images/generic/infer_many.json?job_id={self.model_id}',
+            data={'image_list': file_upload},
         )
-        assert rv.status_code == 200, 'POST failed with %s' % rv.status_code
+        assert rv.status_code == 200, f'POST failed with {rv.status_code}'
         data = json.loads(rv.data)
         assert 'outputs' in data, 'invalid response'
 
@@ -654,8 +653,8 @@ class BaseTestCreatedWithAnyDataset(BaseViewsTestWithModelWithAnyDataset):
         if self.val_db_path is None:
             raise unittest.SkipTest('Class has no validation db')
         rv = self.app.post(
-            '/models/images/generic/infer_db.json?job_id=%s' % self.model_id,
-            data={'db_path': self.val_db_path}
+            f'/models/images/generic/infer_db.json?job_id={self.model_id}',
+            data={'db_path': self.val_db_path},
         )
         assert rv.status_code == 200, 'POST failed with %s\n\n%s' % (rv.status_code, rv.data)
         data = json.loads(rv.data)
@@ -700,18 +699,18 @@ class BaseTestCreatedWithGradientDataExtension(BaseTestCreatedWithAnyDataset,
 
     def test_infer_extension_json(self):
         rv = self.app.post(
-            '/models/images/generic/infer_extension.json?job_id=%s' % self.model_id,
+            f'/models/images/generic/infer_extension.json?job_id={self.model_id}',
             data={
                 'gradient_x': 0.5,
                 'gradient_y': -0.5,
-            }
+            },
         )
-        assert rv.status_code == 200, 'POST failed with %s' % rv.status_code
+        assert rv.status_code == 200, f'POST failed with {rv.status_code}'
         data = json.loads(rv.data)
         output = data['outputs'][data['outputs'].keys()[0]]['output']
-        assert output[0] > 0 and \
-            output[1] < 0, \
-            'image regression result is wrong: %s' % data['outputs']['output']
+        assert (
+            output[0] > 0 and output[1] < 0
+        ), f"image regression result is wrong: {data['outputs']['output']}"
 
 
 class BaseTestCreatedWithImageProcessingExtension(
@@ -780,10 +779,10 @@ end
             image_upload = (StringIO(infile.read()), 'image.png')
 
         rv = self.app.post(
-            '/models/images/generic/infer_one.json?job_id=%s' % self.model_id,
-            data={'image_file': image_upload}
+            f'/models/images/generic/infer_one.json?job_id={self.model_id}',
+            data={'image_file': image_upload},
         )
-        assert rv.status_code == 200, 'POST failed with %s' % rv.status_code
+        assert rv.status_code == 200, f'POST failed with {rv.status_code}'
         data = json.loads(rv.data)
         data_shape = np.array(data['outputs']['output']).shape
         if not self.VARIABLE_SIZE_DATASET:
@@ -809,10 +808,10 @@ end
         image_upload = (s, 'image.png')
         # post request
         rv = self.app.post(
-            '/models/images/generic/infer_one.json?job_id=%s' % self.model_id,
-            data={'image_file': image_upload, 'dont_resize': 'y'}
+            f'/models/images/generic/infer_one.json?job_id={self.model_id}',
+            data={'image_file': image_upload, 'dont_resize': 'y'},
         )
-        assert rv.status_code == 200, 'POST failed with %s' % rv.status_code
+        assert rv.status_code == 200, f'POST failed with {rv.status_code}'
         data = json.loads(rv.data)
         data_shape = np.array(data['outputs']['output']).shape
         assert data_shape == (1,) + shape
@@ -866,8 +865,10 @@ class BaseTestDatasetModelInteractions(BaseViewsTestWithDataset):
                 # That's what we were waiting for
                 break
             else:
-                raise Exception('Model not waiting - "%s"' % model_status)
-            assert (time.time() - start_time) < timeout, 'Job took more than %s seconds' % timeout
+                raise Exception(f'Model not waiting - "{model_status}"')
+            assert (
+                time.time() - start_time
+            ) < timeout, f'Job took more than {timeout} seconds'
             time.sleep(0.5)
             dataset_status = self.dataset_status(dataset_id)
 
@@ -1165,17 +1166,20 @@ end
             image_upload = (StringIO(infile.read()), 'image.png')
 
         rv = self.app.post(
-            '/models/images/generic/infer_one.json?job_id=%s' % self.model_id,
+            f'/models/images/generic/infer_one.json?job_id={self.model_id}',
             data={
                 'image_file': image_upload,
-            }
+            },
         )
-        assert rv.status_code == 200, 'POST failed with %s' % rv.status_code
+        assert rv.status_code == 200, f'POST failed with {rv.status_code}'
         # make sure the shape of the output matches the shape of the input
         data = json.loads(rv.data)
         output = np.array(data['outputs']['output'][0])
-        assert output.shape == (1, self.CROP_SIZE, self.CROP_SIZE), \
-            'shape mismatch: %s' % str(output.shape)
+        assert output.shape == (
+            1,
+            self.CROP_SIZE,
+            self.CROP_SIZE,
+        ), f'shape mismatch: {str(output.shape)}'
 
 
 class TestSweepCreation(BaseViewsTestWithDataset, test_utils.CaffeMixin):

@@ -80,8 +80,7 @@ def get_all_contours(contour_path):
         for dirpath, dirnames, files in os.walk(contour_path)
         for f in fnmatch.filter(files, 'IM-0001-*-icontour-manual.txt')
     ]
-    extracted = map(Contour, contours)
-    return extracted
+    return map(Contour, contours)
 
 
 def load_contour(contour, img_path):
@@ -206,24 +205,24 @@ class DataIngestion(DataIngestionInterface):
     @override
     def itemize_entries(self, stage):
         ctrs = self.userdata['contours']
-        n_val_entries = self.userdata['n_val_entries']
-
         entries = []
         if not self.userdata['is_inference_db']:
+            n_val_entries = self.userdata['n_val_entries']
+
             if stage == constants.TRAIN_DB:
                 entries = ctrs[n_val_entries:]
             elif stage == constants.VAL_DB:
                 entries = ctrs[:n_val_entries]
         elif stage == constants.TEST_DB:
-            if self.userdata['validation_record'] != 'none':
-                if self.userdata['test_image_file']:
-                    raise ValueError("Specify either an image or a record "
-                                     "from the validation set.")
-                # test record from validation set
-                entries = [ctrs[int(self.validation_record)]]
-
-            else:
+            if self.userdata['validation_record'] == 'none':
                 # test image file
                 entries = [self.userdata['test_image_file']]
+
+            elif self.userdata['test_image_file']:
+                raise ValueError("Specify either an image or a record "
+                                 "from the validation set.")
+            else:
+                # test record from validation set
+                entries = [ctrs[int(self.validation_record)]]
 
         return entries

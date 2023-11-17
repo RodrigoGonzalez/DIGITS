@@ -68,7 +68,7 @@ class TestLoadImage():
         orig = PIL.Image.new(orig_mode, (10, 10), pixel)
 
         # temp files cause permission errors so just generate the name
-        tmp = tempfile.mkstemp(suffix='.' + suffix)
+        tmp = tempfile.mkstemp(suffix=f'.{suffix}')
         orig.save(tmp[1])
         new = image_utils.load_image(tmp[1])
         try:
@@ -145,46 +145,36 @@ class TestResizeImage():
             for w in [10, 16]:
                 for t in ['gray', 'color']:
                     # test channels=None (should autodetect channels)
-                    if t == 'color':
-                        s = (h, w, 3)
-                    else:
-                        s = (h, w)
+                    s = (h, w, 3) if t == 'color' else (h, w)
                     yield self.verify_pil, (h, w, None, None, t, s)
                     yield self.verify_np, (h, w, None, None, t, s)
 
                     # test channels={3,1}
                     for c in [3, 1]:
                         for m in ['squash', 'crop', 'fill', 'half_crop']:
-                            if c == 3:
-                                s = (h, w, 3)
-                            else:
-                                s = (h, w)
+                            s = (h, w, 3) if c == 3 else (h, w)
                             yield self.verify_pil, (h, w, c, m, t, s)
                             yield self.verify_np, (h, w, c, m, t, s)
 
     def verify_pil(self, args):
         # pass a PIL.Image to resize_image and check the returned dimensions
         h, w, c, m, t, s = args
-        if t == 'gray':
-            i = self.pil_gray
-        else:
-            i = self.pil_color
+        i = self.pil_gray if t == 'gray' else self.pil_color
         r = image_utils.resize_image(i, h, w, c, m)
-        assert r.shape == s, 'Resized PIL.Image (orig=%s) should have been %s, but was %s %s' % (
-            i.size, s, r.shape, self.args_to_str(args))
-        assert r.dtype == np.uint8, 'image.dtype should be uint8, not %s' % r.dtype
+        assert (
+            r.shape == s
+        ), f'Resized PIL.Image (orig={i.size}) should have been {s}, but was {r.shape} {self.args_to_str(args)}'
+        assert r.dtype == np.uint8, f'image.dtype should be uint8, not {r.dtype}'
 
     def verify_np(self, args):
         # pass a numpy.ndarray to resize_image and check the returned dimensions
         h, w, c, m, t, s = args
-        if t == 'gray':
-            i = self.np_gray
-        else:
-            i = self.np_color
+        i = self.np_gray if t == 'gray' else self.np_color
         r = image_utils.resize_image(i, h, w, c, m)
-        assert r.shape == s, 'Resized np.ndarray (orig=%s) should have been %s, but was %s %s' % (
-            i.shape, s, r.shape, self.args_to_str(args))
-        assert r.dtype == np.uint8, 'image.dtype should be uint8, not %s' % r.dtype
+        assert (
+            r.shape == s
+        ), f'Resized np.ndarray (orig={i.shape}) should have been {s}, but was {r.shape} {self.args_to_str(args)}'
+        assert r.dtype == np.uint8, f'image.dtype should be uint8, not {r.dtype}'
 
     def args_to_str(self, args):
         return """

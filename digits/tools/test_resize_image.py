@@ -46,7 +46,9 @@ class TestRangeValidation():
 
     def test_number_not_float_compatible(self):
         value = 'a'
-        assert not resize_image.validate_range(value), 'number=%s should not be accepted' % value
+        assert not resize_image.validate_range(
+            value
+        ), f'number={value} should not be accepted'
 
     def test_number_below_min(self):
         assert not resize_image.validate_range(0, min_value=1), 'validation should not pass with number < min_value'

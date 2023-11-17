@@ -169,10 +169,10 @@ class TestCalculatePercentages():
         for supplied, expected in expected_outputs:
             args = {k: None for k in ['labels_file', 'train_file', 'percent_train',
                                       'val_file', 'percent_val', 'test_file', 'percent_test']}
-            args.update({supplied: ''})
+            args[supplied] = ''
 
             output = parse_folder.calculate_percentages(**args)
-            assert output == expected, 'expected output of {}, got {}'.format(output, expected)
+            assert output == expected, f'expected output of {output}, got {expected}'
 
     def test_making_2(self, mock_input, mock_output):
         mock_input.return_value = True
@@ -184,37 +184,49 @@ class TestCalculatePercentages():
         for supplied, expected in expected_outputs:
             args = {k: None for k in ['labels_file', 'train_file', 'percent_train',
                                       'val_file', 'percent_val', 'test_file', 'percent_test']}
-            args.update({k + '_file': '' for k in supplied})
-            args.update({'percent_' + k: v for k, v in itertools.izip(supplied, expected)})
+            args.update({f'{k}_file': '' for k in supplied})
+            args.update({f'percent_{k}': v for k, v in itertools.izip(supplied, expected)})
 
             # Tricky line. itertools returns combinations in sorted order, always.
             # The order of the returned non-zero values should always be correct.
             output = [x for x in parse_folder.calculate_percentages(**args) if x != 0]
-            assert output == list(expected), 'expected output of {}, got {}'.format(output, expected)
+            assert output == list(expected), f'expected output of {output}, got {expected}'
 
     def test_making_3_all_given(self, mock_input, mock_output):
         mock_input.return_value = True
         mock_output.return_value = True
 
         expected = (25, 30, 45)
-        assert parse_folder.calculate_percentages(
-            labels_file='not-a-file.txt',
-            train_file='not-a-file.txt', percent_train=25,
-            val_file='not-a-file.txt', percent_val=30,
-            test_file='not-a-file.txt', percent_test=45
-        ) == expected, 'Calculate percentages should return identical values of {}'.format(expected)
+        assert (
+            parse_folder.calculate_percentages(
+                labels_file='not-a-file.txt',
+                train_file='not-a-file.txt',
+                percent_train=25,
+                val_file='not-a-file.txt',
+                percent_val=30,
+                test_file='not-a-file.txt',
+                percent_test=45,
+            )
+            == expected
+        ), f'Calculate percentages should return identical values of {expected}'
 
     def test_making_3_2_given(self, mock_input, mock_output):
         mock_input.return_value = True
         mock_output.return_value = True
 
         expected = 45
-        assert parse_folder.calculate_percentages(
-            labels_file='not-a-file.txt',
-            train_file='not-a-file.txt', percent_train=25,
-            val_file='not-a-file.txt', percent_val=30,
-            test_file='not-a-file.txt', percent_test=None
-        )[2] == expected, 'Calculate percentages should calculate third value of {}'.format(expected)
+        assert (
+            parse_folder.calculate_percentages(
+                labels_file='not-a-file.txt',
+                train_file='not-a-file.txt',
+                percent_train=25,
+                val_file='not-a-file.txt',
+                percent_val=30,
+                test_file='not-a-file.txt',
+                percent_test=None,
+            )[2]
+            == expected
+        ), f'Calculate percentages should calculate third value of {expected}'
 
     @raises(AssertionError)
     def test_making_out_of_range(self, mock_input, mock_output):
@@ -298,8 +310,8 @@ class TestSplitIndices():
         idealb = size * float(100 - pct_c) / 100.0
         idxa, idxb = parse_folder.three_way_split_indices(size, pct_b, pct_c)
 
-        assert abs(ideala - idxa) <= 2, 'split should be close to {}, is {}'.format(ideala, idxa)
-        assert abs(idealb - idxb) <= 2, 'split should be close to {}, is {}'.format(idealb, idxb)
+        assert abs(ideala - idxa) <= 2, f'split should be close to {ideala}, is {idxa}'
+        assert abs(idealb - idxb) <= 2, f'split should be close to {idealb}, is {idxb}'
 
 
 class TestParseFolder():
@@ -321,6 +333,6 @@ class TestParseFolder():
 
         with open(labels_file) as infile:
             parsed_classes = [line.strip() for line in infile]
-            assert parsed_classes == classes, '%s != %s' % (parsed_classes, classes)
+            assert parsed_classes == classes, f'{parsed_classes} != {classes}'
 
         shutil.rmtree(tmpdir)

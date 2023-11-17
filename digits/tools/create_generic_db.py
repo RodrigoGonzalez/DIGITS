@@ -103,9 +103,7 @@ class LmdbWriter(DbWriter):
             db_dir,
             map_async=True,
             max_dbs=0)
-        logger.info('Created %s db for stage %s in %s' % (db_type,
-                                                          self.stage,
-                                                          sub_dir))
+        logger.info(f'Created {db_type} db for stage {self.stage} in {sub_dir}')
         return db
 
     def array_to_datum(self, data, scalar_label, encoding):
@@ -150,7 +148,7 @@ class LmdbWriter(DbWriter):
             if feature.ndim != 3:
                 raise ValueError("LMDB/Caffe expect 3D data - ndim=%d" % feature.ndim)
             # restrict labels to 3D data (Caffe Datum objects) or scalars
-            if not (label.ndim == 3 or label.size == 1):
+            if label.ndim != 3 and label.size != 1:
                 raise ValueError("LMDB/Caffe expect 3D or scalar label - ndim=%d" % label.ndim)
             if label.size > 1:
                 label_datum = self.array_to_datum(
@@ -187,7 +185,7 @@ class LmdbWriter(DbWriter):
             feature_datums.append((key, feature))
             self.seqn += 1
         self.write_datums(self.feature_db, feature_datums)
-        if len(label_datums) > 0:
+        if label_datums:
             self.write_datums(self.label_db, label_datums)
         self.processed_batches += 1
         logger.info('Processed %d/%d' % (self.processed_batches, self.total_batches))
@@ -206,7 +204,7 @@ class LmdbWriter(DbWriter):
             except AttributeError as e:
                 version = tuple(int(x) for x in lmdb.__version__.split('.'))
                 if version < (0, 87):
-                    raise ValueError('py-lmdb is out of date (%s vs 0.87)' % lmdb.__version__)
+                    raise ValueError(f'py-lmdb is out of date ({lmdb.__version__} vs 0.87)')
                 else:
                     raise e
             # try again
@@ -257,11 +255,13 @@ class Encoder(threading.Thread):
                             self.label_shape = label.shape
                         if self.force_same_shape:
                             if self.feature_shape != feature.shape:
-                                raise ValueError("Feature shape mismatch (last:%s, previous:%s)"
-                                                 % (repr(feature.shape), repr(self.feature_shape)))
+                                raise ValueError(
+                                    f"Feature shape mismatch (last:{repr(feature.shape)}, previous:{repr(self.feature_shape)})"
+                                )
                             if self.label_shape != label.shape:
-                                raise ValueError("Label shape mismatch (last:%s, previous:%s)"
-                                                 % (repr(label.shape), repr(self.label_shape)))
+                                raise ValueError(
+                                    f"Label shape mismatch (last:{repr(label.shape)}, previous:{repr(self.label_shape)})"
+                                )
                             if self.feature_sum is None:
                                 self.feature_sum = np.zeros(self.feature_shape, dtype=np.float64)
                             # accumulate sum for mean file calculation
@@ -273,11 +273,10 @@ class Encoder(threading.Thread):
 
                     self.processed_count += 1
 
-                if len(data) >= 0:
-                    # write data
-                    self.writer.write_batch(data)
+                # write data
+                self.writer.write_batch(data)
             except Exception as e:
-                self.error_queue.put('%s: %s' % (type(e).__name__, e.message))
+                self.error_queue.put(f'{type(e).__name__}: {e.message}')
                 raise
 
 
@@ -341,17 +340,19 @@ class DbCreator(object):
                     raise Exception(err)
                 if feature_shape is None:
                     feature_shape = encoder.feature_shape
-                    logger.info('Feature shape for stage %s: %s' % (stage, repr(feature_shape)))
+                    logger.info(f'Feature shape for stage {stage}: {repr(feature_shape)}')
                 if label_shape is None:
                     label_shape = encoder.label_shape
-                    logger.info('Label shape for stage %s: %s' % (stage, repr(label_shape)))
+                    logger.info(f'Label shape for stage {stage}: {repr(label_shape)}')
                 if force_same_shape:
                     if encoder.feature_shape and feature_shape != encoder.feature_shape:
-                        raise ValueError("Feature shape mismatch (last:%s, previous:%s)"
-                                         % (repr(feature_shape), repr(encoder.feature_shape)))
+                        raise ValueError(
+                            f"Feature shape mismatch (last:{repr(feature_shape)}, previous:{repr(encoder.feature_shape)})"
+                        )
                     if encoder.label_shape and label_shape != encoder.label_shape:
-                        raise ValueError("Label shape mismatch (last:%s, previous:%s)"
-                                         % (repr(label_shape), repr(encoder.label_shape)))
+                        raise ValueError(
+                            f"Label shape mismatch (last:{repr(label_shape)}, previous:{repr(encoder.label_shape)})"
+                        )
                     if feature_sum is None:
                         feature_sum = encoder.feature_sum
                     elif encoder.feature_sum is not None:
@@ -398,7 +399,7 @@ class DbCreator(object):
         with open(os.path.join(dataset_dir, mean_file), 'wb') as outfile:
             outfile.write(blob.SerializeToString())
 
-        logger.info('Created mean file for stage %s in %s' % (stage, mean_file))
+        logger.info(f'Created mean file for stage {stage} in {mean_file}')
 
 
 def create_generic_db(jobs_dir, dataset_id, stage):
@@ -413,7 +414,7 @@ def create_generic_db(jobs_dir, dataset_id, stage):
     # load dataset job
     dataset_dir = os.path.join(jobs_dir, dataset_id)
     if not os.path.isdir(dataset_dir):
-        raise IOError("Dataset dir %s does not exist" % dataset_dir)
+        raise IOError(f"Dataset dir {dataset_dir} does not exist")
     dataset = Job.load(dataset_dir)
 
     # create instance of extension
@@ -478,5 +479,5 @@ if __name__ == '__main__':
             args['stage']
         )
     except Exception as e:
-        logger.error('%s: %s' % (type(e).__name__, e.message))
+        logger.error(f'{type(e).__name__}: {e.message}')
         raise

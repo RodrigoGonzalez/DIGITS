@@ -43,12 +43,12 @@ def resize_example():
             length = len(image.tostring())
         else:
             s = StringIO()
-            if encoding == 'png':
-                PIL.Image.fromarray(image).save(s, format='PNG')
-            elif encoding == 'jpg':
+            if encoding == 'jpg':
                 PIL.Image.fromarray(image).save(s, format='JPEG', quality=90)
+            elif encoding == 'png':
+                PIL.Image.fromarray(image).save(s, format='PNG')
             else:
-                raise ValueError('unrecognized encoding "%s"' % encoding)
+                raise ValueError(f'unrecognized encoding "{encoding}"')
             s.seek(0)
             image = PIL.Image.open(s)
             length = len(s.getvalue())
@@ -61,4 +61,4 @@ def resize_example():
             utils.sizeof_fmt(length)
         )
     except Exception as e:
-        return '%s: %s' % (type(e).__name__, e)
+        return f'{type(e).__name__}: {e}'

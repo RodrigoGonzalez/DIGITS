@@ -28,20 +28,20 @@ def validate_folder(folder):
         try:
             r = requests.head(folder, timeout=utils.HTTP_TIMEOUT)
             if r.status_code not in [requests.codes.ok, requests.codes.moved, requests.codes.found]:
-                logger.error('"%s" returned status_code %s' % (folder, r.status_code))
+                logger.error(f'"{folder}" returned status_code {r.status_code}')
                 return False
         except Exception as e:
-            logger.error('%s: %s' % (type(e).__name__, e))
+            logger.error(f'{type(e).__name__}: {e}')
             return False
         return True
     if not os.path.exists(folder):
-        logger.error('folder "%s" does not exist' % folder)
+        logger.error(f'folder "{folder}" does not exist')
         return False
     if not os.path.isdir(folder):
-        logger.error('"%s" is not a directory' % folder)
+        logger.error(f'"{folder}" is not a directory')
         return False
     if not os.access(folder, os.R_OK):
-        logger.error('you do not have read access to folder "%s"' % folder)
+        logger.error(f'you do not have read access to folder "{folder}"')
         return False
     return True
 
@@ -50,26 +50,28 @@ def validate_output_file(filename):
     if filename is None:
         return True
     if os.path.exists(filename):
-        logger.error('output file "%s" already exists!' % filename)
+        logger.error(f'output file "{filename}" already exists!')
         return False
     output_dir = os.path.dirname(filename)
     if not output_dir:
         output_dir = '.'
     if not os.path.exists(output_dir):
-        logger.error('output directory "%s" does not exist!' % output_dir)
+        logger.error(f'output directory "{output_dir}" does not exist!')
         return False
     if not os.access(output_dir, os.W_OK):
-        logger.error('you do not have write access to output directory "%s"!' % output_dir)
+        logger.error(
+            f'you do not have write access to output directory "{output_dir}"!'
+        )
         return False
     return True
 
 
 def validate_input_file(filename):
     if not os.path.exists(filename) or not os.path.isfile(filename):
-        logger.error('input file "%s" does not exist!' % filename)
+        logger.error(f'input file "{filename}" does not exist!')
         return False
     if not os.access(filename, os.R_OK):
-        logger.error('you do not have read access to "%s"!' % filename)
+        logger.error(f'you do not have read access to "{filename}"!')
         return False
     return True
 
@@ -78,20 +80,19 @@ def validate_range(number, min_value=None, max_value=None, allow_none=False):
     if number is None:
         if allow_none:
             return True
-        else:
-            logger.error('invalid value %s' % number)
-            return False
+        logger.error(f'invalid value {number}')
+        return False
     try:
         float(number)
     except ValueError:
-        logger.error('invalid value %s' % number)
+        logger.error(f'invalid value {number}')
         return False
 
     if min_value is not None and number < min_value:
-        logger.error('invalid value %s' % number)
+        logger.error(f'invalid value {number}')
         return False
     if max_value is not None and number > max_value:
-        logger.error('invalid value %s' % number)
+        logger.error(f'invalid value {number}')
         return False
     return True
 
@@ -145,7 +146,9 @@ def calculate_percentages(labels_file,
             return (0, 0, 100)
     elif making == 2:
         if mt and mv:
-            assert not (pt is None and pv is None), 'must give percent_train or percent_val'
+            assert (
+                pt is not None or pv is not None
+            ), 'must give percent_train or percent_val'
             if pt is not None and pv is not None:
                 assert (pt + pv) == 100, 'percentages do not sum to 100'
                 return (pt, pv, 0)
@@ -154,7 +157,9 @@ def calculate_percentages(labels_file,
             else:
                 return (100 - pv, pv, 0)
         elif mt and ms:
-            assert not (pt is None and ps is None), 'must give percent_train or percent_test'
+            assert (
+                pt is not None or ps is not None
+            ), 'must give percent_train or percent_test'
             if pt is not None and ps is not None:
                 assert (pt + ps) == 100, 'percentages do not sum to 100'
                 return (pt, 0, ps)
@@ -163,7 +168,9 @@ def calculate_percentages(labels_file,
             else:
                 return (100 - ps, 0, ps)
         elif mv and ms:
-            assert not (pv is None and ps is None), 'must give percent_val or percent_test'
+            assert (
+                pv is not None or ps is not None
+            ), 'must give percent_val or percent_test'
             if pv is not None and ps is not None:
                 assert (pv + ps) == 100, 'percentages do not sum to 100'
                 return (0, pv, ps)
@@ -200,14 +207,15 @@ def parse_web_listing(url):
 
     r = requests.get(url, timeout=3.05)
     if r.status_code != requests.codes.ok:
-        raise Exception('HTTP Status Code %s' % r.status_code)
+        raise Exception(f'HTTP Status Code {r.status_code}')
 
     for line in r.content.split('\n'):
         line = line.strip()
-        # Matches nginx and apache's autoindex formats
-        match = re.match(
-            r'^.*\<a.+href\=[\'\"]([^\'\"]+)[\'\"].*\>.*(\w{1,4}-\w{1,4}-\w{1,4})', line, flags=re.IGNORECASE)
-        if match:
+        if match := re.match(
+            r'^.*\<a.+href\=[\'\"]([^\'\"]+)[\'\"].*\>.*(\w{1,4}-\w{1,4}-\w{1,4})',
+            line,
+            flags=re.IGNORECASE,
+        ):
             if match.group(1).endswith('/'):
                 dirs.append(match.group(1))
 

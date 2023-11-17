@@ -131,8 +131,9 @@ class DataIngestion(DataIngestionInterface):
             label_name = os.path.splitext(
                 os.path.split(label_image_list[idx])[1])[0]
             if feature_name != label_name:
-                raise ValueError("No corresponding feature/label pair found for (%s,%s)"
-                                 % (feature_name, label_name))
+                raise ValueError(
+                    f"No corresponding feature/label pair found for ({feature_name},{label_name})"
+                )
 
         # split lists if there is no val folder
         if not self.has_val_folder:
@@ -146,11 +147,13 @@ class DataIngestion(DataIngestionInterface):
     def make_image_list(self, folder):
         image_files = []
         for dirpath, dirnames, filenames in os.walk(folder, followlinks=True):
-            for filename in filenames:
-                if filename.lower().endswith(image.SUPPORTED_EXTENSIONS):
-                    image_files.append('%s' % os.path.join(dirpath, filename))
-        if len(image_files) == 0:
-            raise ValueError("Unable to find supported images in %s" % folder)
+            image_files.extend(
+                f'{os.path.join(dirpath, filename)}'
+                for filename in filenames
+                if filename.lower().endswith(image.SUPPORTED_EXTENSIONS)
+            )
+        if not image_files:
+            raise ValueError(f"Unable to find supported images in {folder}")
         return sorted(image_files)
 
     def split_image_list(self, filelist, stage):
@@ -169,4 +172,4 @@ class DataIngestion(DataIngestionInterface):
         elif stage == constants.TRAIN_DB:
             return filelist[n_val_entries:]
         else:
-            raise ValueError("Unknown stage: %s" % stage)
+            raise ValueError(f"Unknown stage: {stage}")

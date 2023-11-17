@@ -75,8 +75,7 @@ class ParseFolderTask(Task):
         self.label_count = None
 
     def __getstate__(self):
-        state = super(ParseFolderTask, self).__getstate__()
-        return state
+        return super(ParseFolderTask, self).__getstate__()
 
     def __setstate__(self, state):
         super(ParseFolderTask, self).__setstate__(state)
@@ -91,7 +90,7 @@ class ParseFolderTask(Task):
         if self.percent_test > 0:
             sets.append('test')
 
-        return 'Parse Folder (%s)' % ('/'.join(sets))
+        return f"Parse Folder ({'/'.join(sets)})"
 
     @override
     def html_id(self):
@@ -103,38 +102,54 @@ class ParseFolderTask(Task):
         if self.percent_test > 0:
             sets.append('test')
 
-        return 'task-parse-folder-%s' % ('-'.join(sets))
+        return f"task-parse-folder-{'-'.join(sets)}"
 
     @override
     def offer_resources(self, resources):
         key = 'parse_folder_task_pool'
         if key not in resources:
             return None
-        for resource in resources[key]:
-            if resource.remaining() >= 1:
-                return {key: [(resource.identifier, 1)]}
-        return None
+        return next(
+            (
+                {key: [(resource.identifier, 1)]}
+                for resource in resources[key]
+                if resource.remaining() >= 1
+            ),
+            None,
+        )
 
     @override
     def task_arguments(self, resources, env):
-        args = [sys.executable, os.path.join(
-            os.path.dirname(os.path.abspath(digits.__file__)),
-            'tools', 'parse_folder.py'),
+        args = [
+            sys.executable,
+            os.path.join(
+                os.path.dirname(os.path.abspath(digits.__file__)),
+                'tools',
+                'parse_folder.py',
+            ),
             self.folder,
             self.path(utils.constants.LABELS_FILE),
-            '--min=%s' % self.min_per_category,
+            f'--min={self.min_per_category}',
         ]
 
         if (self.percent_val + self.percent_test) < 100:
-            args.append('--train_file=%s' % self.path(utils.constants.TRAIN_FILE))
+            args.append(f'--train_file={self.path(utils.constants.TRAIN_FILE)}')
         if self.percent_val > 0:
-            args.append('--val_file=%s' % self.path(utils.constants.VAL_FILE))
-            args.append('--percent_val=%s' % self.percent_val)
+            args.extend(
+                (
+                    f'--val_file={self.path(utils.constants.VAL_FILE)}',
+                    f'--percent_val={self.percent_val}',
+                )
+            )
         if self.percent_test > 0:
-            args.append('--test_file=%s' % self.path(utils.constants.TEST_FILE))
-            args.append('--percent_test=%s' % self.percent_test)
+            args.extend(
+                (
+                    f'--test_file={self.path(utils.constants.TEST_FILE)}',
+                    f'--percent_test={self.percent_test}',
+                )
+            )
         if self.max_per_category is not None:
-            args.append('--max=%s' % self.max_per_category)
+            args.append(f'--max={self.max_per_category}')
 
         return args
 
@@ -144,22 +159,18 @@ class ParseFolderTask(Task):
         if not message:
             return False
 
-        # progress
-        match = re.match(r'Progress: ([-+]?[0-9]*\.?[0-9]+(e[-+]?[0-9]+)?)', message)
-        if match:
+        if match := re.match(
+            r'Progress: ([-+]?[0-9]*\.?[0-9]+(e[-+]?[0-9]+)?)', message
+        ):
             self.progress = float(match.group(1))
             self.emit_progress_update()
             return True
 
-        # totals
-        match = re.match(r'Found (\d+) images in (\d+) categories', message)
-        if match:
+        if match := re.match(r'Found (\d+) images in (\d+) categories', message):
             self.label_count = int(match.group(2))
             return True
 
-        # splits
-        match = re.match(r'Selected (\d+) for (\w+)', message)
-        if match:
+        if match := re.match(r'Selected (\d+) for (\w+)', message):
             if match.group(2).startswith('training'):
                 self.train_count = int(match.group(1))
             elif match.group(2).startswith('validation'):
@@ -169,10 +180,10 @@ class ParseFolderTask(Task):
             return True
 
         if level == 'warning':
-            self.logger.warning('%s: %s' % (self.name(), message))
+            self.logger.warning(f'{self.name()}: {message}')
             return True
         if level in ['error', 'critical']:
-            self.logger.error('%s: %s' % (self.name(), message))
+            self.logger.error(f'{self.name()}: {message}')
             self.exception = message
             return True
 

@@ -110,17 +110,21 @@ class BaseViewsTestWithDataset(BaseViewsTest):
 
     @classmethod
     def get_dataset_json(cls):
-        rv = cls.app.get('/datasets/%s.json' % cls.dataset_id)
-        assert rv.status_code == 200, 'page load failed with %s' % rv.status_code
+        rv = cls.app.get(f'/datasets/{cls.dataset_id}.json')
+        assert rv.status_code == 200, f'page load failed with {rv.status_code}'
         return json.loads(rv.data)
 
     @classmethod
     def get_entry_count(cls, stage):
         json_data = cls.get_dataset_json()
-        for t in json_data['create_db_tasks']:
-            if t['stage'] == stage:
-                return t['entry_count']
-        return None
+        return next(
+            (
+                t['entry_count']
+                for t in json_data['create_db_tasks']
+                if t['stage'] == stage
+            ),
+            None,
+        )
 
     @classmethod
     def get_feature_dims(cls):
@@ -181,7 +185,7 @@ class BaseViewsTestWithDataset(BaseViewsTest):
     @classmethod
     def setUpClass(cls, **kwargs):
         if extensions.data.get_extension(cls.EXTENSION_ID) is None:
-            raise unittest.SkipTest('Extension "%s" is not installed' % cls.EXTENSION_ID)
+            raise unittest.SkipTest(f'Extension "{cls.EXTENSION_ID}" is not installed')
         super(BaseViewsTestWithDataset, cls).setUpClass()
         cls.dataset_id = cls.create_dataset(json=True, **kwargs)
         assert cls.dataset_wait_completion(cls.dataset_id) == 'Done', 'create failed'
@@ -202,7 +206,7 @@ class GenericViewsTest(BaseViewsTest):
     @classmethod
     def setUpClass(cls, **kwargs):
         if extensions.data.get_extension(cls.EXTENSION_ID) is None:
-            raise unittest.SkipTest('Extension "%s" is not installed' % cls.EXTENSION_ID)
+            raise unittest.SkipTest(f'Extension "{cls.EXTENSION_ID}" is not installed')
         super(GenericViewsTest, cls).setUpClass()
 
     def test_page_dataset_new(self):
@@ -262,8 +266,8 @@ class GenericCreationTest(BaseViewsTestWithDataset):
 
         job1_id = self.create_dataset(**options_1)
         assert self.dataset_wait_completion(job1_id) == 'Done', 'first job failed'
-        rv = self.app.get('/datasets/%s.json' % job1_id)
-        assert rv.status_code == 200, 'json load failed with %s' % rv.status_code
+        rv = self.app.get(f'/datasets/{job1_id}.json')
+        assert rv.status_code == 200, f'json load failed with {rv.status_code}'
         content1 = json.loads(rv.data)
 
         # Clone job1 as job2
@@ -273,8 +277,8 @@ class GenericCreationTest(BaseViewsTestWithDataset):
 
         job2_id = self.create_dataset(**options_2)
         assert self.dataset_wait_completion(job2_id) == 'Done', 'second job failed'
-        rv = self.app.get('/datasets/%s.json' % job2_id)
-        assert rv.status_code == 200, 'json load failed with %s' % rv.status_code
+        rv = self.app.get(f'/datasets/{job2_id}.json')
+        assert rv.status_code == 200, f'json load failed with {rv.status_code}'
         content2 = json.loads(rv.data)
 
         # These will be different
@@ -297,26 +301,24 @@ class GenericCreatedTest(BaseViewsTestWithDataset):
 
     def test_index_json(self):
         rv = self.app.get('/index.json')
-        assert rv.status_code == 200, 'page load failed with %s' % rv.status_code
+        assert rv.status_code == 200, f'page load failed with {rv.status_code}'
         content = json.loads(rv.data)
-        found = False
-        for d in content['datasets']:
-            if d['id'] == self.dataset_id:
-                found = True
-                break
+        found = any(d['id'] == self.dataset_id for d in content['datasets'])
         assert found, 'dataset not found in list'
 
     def test_dataset_json(self):
         content = self.get_dataset_json()
-        assert content['id'] == self.dataset_id, 'expected same job_id: %s != %s' % (content['id'], self.dataset_id)
+        assert (
+            content['id'] == self.dataset_id
+        ), f"expected same job_id: {content['id']} != {self.dataset_id}"
 
     def test_edit_name(self):
         status = self.edit_job(
             self.dataset_id,
             name='new name'
         )
-        assert status == 200, 'failed with %s' % status
-        rv = self.app.get('/datasets/summary?job_id=%s' % self.dataset_id)
+        assert status == 200, f'failed with {status}'
+        rv = self.app.get(f'/datasets/summary?job_id={self.dataset_id}')
         assert rv.status_code == 200
         assert 'new name' in rv.data
 
@@ -325,13 +327,13 @@ class GenericCreatedTest(BaseViewsTestWithDataset):
             self.dataset_id,
             notes='new notes'
         )
-        assert status == 200, 'failed with %s' % status
+        assert status == 200, f'failed with {status}'
 
     def test_explore_features(self):
         # features DB is encoded by default
         rv = self.app.get('/datasets/generic/explore?db=train_db%%2Ffeatures&job_id=%s' % self.dataset_id)
         # just make sure this doesn't return an error
-        assert rv.status_code == 200, 'page load failed with %s' % rv.status_code
+        assert rv.status_code == 200, f'page load failed with {rv.status_code}'
 
     def test_feature_dims(self):
         dims = self.get_feature_dims()

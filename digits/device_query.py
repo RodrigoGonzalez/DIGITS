@@ -162,14 +162,13 @@ def get_nvml():
     """
     if platform.system() == 'Windows':
         return get_library('nvml.dll')
-    else:
-        for name in (
-                'libnvidia-ml.so.1',
-                'libnvidia-ml.so',
-                'nvml.so'):
-            nvml = get_library(name)
-            if nvml is not None:
-                return nvml
+    for name in (
+            'libnvidia-ml.so.1',
+            'libnvidia-ml.so',
+            'nvml.so'):
+        nvml = get_library(name)
+        if nvml is not None:
+            return nvml
     return None
 
 devices = None
@@ -249,14 +248,14 @@ def get_nvml_info(device_id):
 
     rc = nvml.nvmlInit()
     if rc != 0:
-        raise RuntimeError('nvmlInit() failed with error #%s' % rc)
+        raise RuntimeError(f'nvmlInit() failed with error #{rc}')
 
     try:
         # get device handle
         handle = c_nvmlDevice_t()
         rc = nvml.nvmlDeviceGetHandleByPciBusId(ctypes.c_char_p(device.pciBusID_str), ctypes.byref(handle))
         if rc != 0:
-            raise RuntimeError('nvmlDeviceGetHandleByPciBusId() failed with error #%s' % rc)
+            raise RuntimeError(f'nvmlDeviceGetHandleByPciBusId() failed with error #{rc}')
 
         # Grab info for this device from NVML
         info = {}
@@ -286,8 +285,6 @@ def get_nvml_info(device_id):
         return info
     finally:
         rc = nvml.nvmlShutdown()
-        if rc != 0:
-            pass
 
 
 if __name__ == '__main__':

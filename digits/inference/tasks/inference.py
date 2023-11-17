@@ -87,15 +87,11 @@ class InferenceTask(Task):
         if not message:
             return False
 
-        # progress
-        match = re.match(r'Processed (\d+)\/(\d+)', message)
-        if match:
+        if match := re.match(r'Processed (\d+)\/(\d+)', message):
             self.progress = float(match.group(1)) / int(match.group(2))
             return True
 
-        # path to inference data
-        match = re.match(r'Saved data to (.*)', message)
-        if match:
+        if match := re.match(r'Saved data to (.*)', message):
             self.inference_data_filename = match.group(1).strip()
             return True
 
@@ -189,16 +185,23 @@ class InferenceTask(Task):
     @override
     def task_arguments(self, resources, env):
 
-        args = [sys.executable,
-                os.path.join(os.path.dirname(os.path.abspath(digits.__file__)), 'tools', 'inference.py'),
-                self.image_list_path if self.image_list_path is not None else self.images,
-                self.job_dir,
-                self.model.id(),
-                '--jobs_dir=%s' % digits.config.config_value('jobs_dir'),
-                ]
+        args = [
+            sys.executable,
+            os.path.join(
+                os.path.dirname(os.path.abspath(digits.__file__)),
+                'tools',
+                'inference.py',
+            ),
+            self.image_list_path
+            if self.image_list_path is not None
+            else self.images,
+            self.job_dir,
+            self.model.id(),
+            f"--jobs_dir={digits.config.config_value('jobs_dir')}",
+        ]
 
         if self.epoch is not None:
-            args.append('--epoch=%s' % repr(self.epoch))
+            args.append(f'--epoch={repr(self.epoch)}')
 
         if self.layers == 'all':
             args.append('--layers=all')

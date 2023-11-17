@@ -18,8 +18,8 @@ def skipIfNotFramework(framework):
     key = 'DIGITS_TEST_FRAMEWORK'
     if (key in os.environ and os.environ[key] != framework):
         raise unittest.SkipTest(
-            'Skipping because %s is "%s" and not "%s"'
-            % (key, os.environ[key], framework))
+            f'Skipping because {key} is "{os.environ[key]}" and not "{framework}"'
+        )
 
 
 class DatasetMixin(object):

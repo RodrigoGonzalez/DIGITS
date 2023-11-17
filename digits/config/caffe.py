@@ -69,11 +69,7 @@ def find_executable_in_dir(dirname=None):
     If dirname is None, search all directories in sys.path
     Returns None if not found
     """
-    if platform.system() == 'Windows':
-        exe_name = 'caffe.exe'
-    else:
-        exe_name = 'caffe'
-
+    exe_name = 'caffe.exe' if platform.system() == 'Windows' else 'caffe'
     if dirname is None:
         dirnames = [path.strip("\"' ") for path in os.environ['PATH'].split(os.pathsep)]
     else:
@@ -151,8 +147,9 @@ def get_version_and_flavor(executable):
         version_string = get_version_from_soname(executable)
 
     if version_string is None:
-        raise ValueError('Could not find version information for Caffe build ' +
-                         'at "%s". Upgrade your installation' % executable)
+        raise ValueError(
+            f'Could not find version information for Caffe build at "{executable}". Upgrade your installation'
+        )
 
     version = parse_version(version_string)
 
@@ -161,8 +158,8 @@ def get_version_and_flavor(executable):
         minimum_version = '0.11.0'
         if version < parse_version(minimum_version):
             raise ValueError(
-                'Required version "%s" is greater than "%s". Upgrade your installation.'
-                % (minimum_version, version_string))
+                f'Required version "{minimum_version}" is greater than "{version_string}". Upgrade your installation.'
+            )
     else:
         flavor = 'BVLC'
 

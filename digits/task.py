@@ -42,7 +42,7 @@ class Task(StatusCls):
         elif isinstance(parents, Task):
             self.parents = [parents]
         else:
-            raise TypeError('parents is %s' % type(parents))
+            raise TypeError(f'parents is {type(parents)}')
 
         self.exception = None
         self.traceback = None
@@ -85,7 +85,7 @@ class Task(StatusCls):
         """
         Returns a string
         """
-        return 'task-%s' % id(self)
+        return f'task-{id(self)}'
 
     def on_status_update(self):
         """
@@ -116,8 +116,7 @@ class Task(StatusCls):
                       )
 
         from digits.webapp import scheduler
-        job = scheduler.get_job(self.job_id)
-        if job:
+        if job := scheduler.get_job(self.job_id):
             job.on_status_update()
 
     def path(self, filename, relative=False):
@@ -147,10 +146,7 @@ class Task(StatusCls):
         """
         if not self.parents:
             return True
-        for parent in self.parents:
-            if parent.status != Status.DONE:
-                return False
-        return True
+        return all(parent.status == Status.DONE for parent in self.parents)
 
     def offer_resources(self, resources):
         """
@@ -197,7 +193,7 @@ class Task(StatusCls):
         # Convert them all to strings
         args = [str(x) for x in args]
 
-        self.logger.info('%s task started.' % self.name())
+        self.logger.info(f'{self.name()} task started.')
         self.status = Status.RUN
 
         unrecognized_output = []
@@ -208,17 +204,18 @@ class Task(StatusCls):
         # https://docs.python.org/2/library/subprocess.html#converting-argument-sequence
         if platform.system() == 'Windows':
             args = ' '.join(args)
-            self.logger.info('Task subprocess args: "{}"'.format(args))
+            self.logger.info(f'Task subprocess args: "{args}"')
         else:
-            self.logger.info('Task subprocess args: "%s"' % ' '.join(args))
+            self.logger.info(f"""Task subprocess args: "{' '.join(args)}\"""")
 
-        self.p = subprocess.Popen(args,
-                                  stdout=subprocess.PIPE,
-                                  stderr=subprocess.STDOUT,
-                                  cwd=self.job_dir,
-                                  close_fds=False if platform.system() == 'Windows' else True,
-                                  env=env,
-                                  )
+        self.p = subprocess.Popen(
+            args,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            cwd=self.job_dir,
+            close_fds=platform.system() != 'Windows',
+            env=env,
+        )
 
         try:
             sigterm_time = None  # When was the SIGTERM signal sent
@@ -239,13 +236,13 @@ class Task(StatusCls):
 
                     if line:
                         if not self.process_output(line):
-                            self.logger.warning('%s unrecognized output: %s' % (self.name(), line.strip()))
+                            self.logger.warning(f'{self.name()} unrecognized output: {line.strip()}')
                             unrecognized_output.append(line)
                     else:
                         time.sleep(0.05)
                 if sigterm_time is not None and (time.time() - sigterm_time > sigterm_timeout):
                     self.p.send_signal(signal.SIGKILL)
-                    self.logger.warning('Sent SIGKILL to task "%s"' % self.name())
+                    self.logger.warning(f'Sent SIGKILL to task "{self.name()}"')
                     time.sleep(0.1)
                 time.sleep(0.01)
         except:
@@ -270,7 +267,7 @@ class Task(StatusCls):
             self.status = Status.ERROR
             return False
         else:
-            self.logger.info('%s task completed.' % self.name())
+            self.logger.info(f'{self.name()} task completed.')
             self.status = Status.DONE
             return True
 
@@ -286,27 +283,23 @@ class Task(StatusCls):
         Takes line of output and parses it according to DIGITS's log format
         Returns (timestamp, level, message) or (None, None, None)
         """
-        # NOTE: This must change when the logging format changes
-        # YYYY-MM-DD HH:MM:SS [LEVEL] message
-        match = re.match(r'(\S{10} \S{8}) \[(\w+)\s*\] (.*)$', line)
-        if match:
-            timestr = match.group(1)
-            timestamp = time.mktime(time.strptime(timestr, digits.log.DATE_FORMAT))
-            level = match.group(2)
-            message = match.group(3)
-            if level.startswith('DEB'):
-                level = 'debug'
-            elif level.startswith('INF'):
-                level = 'info'
-            elif level.startswith('WAR'):
-                level = 'warning'
-            elif level.startswith('ERR'):
-                level = 'error'
-            elif level.startswith('CRI'):
-                level = 'critical'
-            return (timestamp, level, message)
-        else:
+        if not (match := re.match(r'(\S{10} \S{8}) \[(\w+)\s*\] (.*)$', line)):
             return (None, None, None)
+        timestr = match.group(1)
+        timestamp = time.mktime(time.strptime(timestr, digits.log.DATE_FORMAT))
+        level = match.group(2)
+        message = match.group(3)
+        if level.startswith('DEB'):
+            level = 'debug'
+        elif level.startswith('INF'):
+            level = 'info'
+        elif level.startswith('WAR'):
+            level = 'warning'
+        elif level.startswith('ERR'):
+            level = 'error'
+        elif level.startswith('CRI'):
+            level = 'critical'
+        return (timestamp, level, message)
 
     def process_output(self, line):
         """
@@ -356,6 +349,5 @@ class Task(StatusCls):
                       )
 
         from digits.webapp import scheduler
-        job = scheduler.get_job(self.job_id)
-        if job:
+        if job := scheduler.get_job(self.job_id):
             job.emit_progress_update()

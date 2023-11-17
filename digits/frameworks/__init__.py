@@ -42,7 +42,6 @@ def get_framework_by_id(framework_id):
     """
     return framework instance associated with given id
     """
-    for fw in get_frameworks():
-        if fw.get_id() == framework_id:
-            return fw
-    return None
+    return next(
+        (fw for fw in get_frameworks() if fw.get_id() == framework_id), None
+    )

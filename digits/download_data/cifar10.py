@@ -53,7 +53,7 @@ class Cifar10Downloader(DataDownloader):
                 ('test_batch', 'test'),
         ]:
             filepath = os.path.join(self.outdir, 'cifar-10-batches-py', filename)
-            assert os.path.exists(filepath), 'Expected "%s" to exist' % filename
+            assert os.path.exists(filepath), f'Expected "{filename}" to exist'
 
             self.__extractData(filepath, phase, label_names)
 

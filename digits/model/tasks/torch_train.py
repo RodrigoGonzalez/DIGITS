@@ -42,12 +42,11 @@ def subprocess_visible_devices(gpus):
     if old_cvd is None:
         real_gpus = gpus
     else:
-        map_visible_to_real = {}
-        for visible, real in enumerate(old_cvd.split(',')):
-            map_visible_to_real[visible] = int(real)
-        real_gpus = []
-        for visible_gpu in gpus:
-            real_gpus.append(map_visible_to_real[visible_gpu])
+        map_visible_to_real = {
+            visible: int(real)
+            for visible, real in enumerate(old_cvd.split(','))
+        }
+        real_gpus = [map_visible_to_real[visible_gpu] for visible_gpu in gpus]
     return ','.join(str(g) for g in real_gpus)
 
 
@@ -160,74 +159,91 @@ class TorchTrainTask(TrainTask):
     @override
     def task_arguments(self, resources, env):
         dataset_backend = self.dataset.get_backend()
-        assert dataset_backend == 'lmdb' or dataset_backend == 'hdf5'
+        assert dataset_backend in ['lmdb', 'hdf5']
 
-        args = [config_value('torch')['executable'],
-                os.path.join(
-                    os.path.dirname(os.path.abspath(digits.__file__)),
-                    'tools', 'torch', 'wrapper.lua'),
-                'main.lua',
-                '--network=%s' % self.model_file.split(".")[0],
-                '--epoch=%d' % int(self.train_epochs),
-                '--networkDirectory=%s' % self.job_dir,
-                '--save=%s' % self.job_dir,
-                '--snapshotPrefix=%s' % self.snapshot_prefix,
-                '--snapshotInterval=%s' % self.snapshot_interval,
-                '--learningRate=%s' % self.learning_rate,
-                '--policy=%s' % str(self.lr_policy['policy']),
-                '--dbbackend=%s' % dataset_backend
-                ]
+        args = [
+            config_value('torch')['executable'],
+            os.path.join(
+                os.path.dirname(os.path.abspath(digits.__file__)),
+                'tools',
+                'torch',
+                'wrapper.lua',
+            ),
+            'main.lua',
+            f'--network={self.model_file.split(".")[0]}',
+            '--epoch=%d' % int(self.train_epochs),
+            f'--networkDirectory={self.job_dir}',
+            f'--save={self.job_dir}',
+            f'--snapshotPrefix={self.snapshot_prefix}',
+            f'--snapshotInterval={self.snapshot_interval}',
+            f'--learningRate={self.learning_rate}',
+            f"--policy={str(self.lr_policy['policy'])}",
+            f'--dbbackend={dataset_backend}',
+        ]
 
         if self.batch_size is not None:
             args.append('--batchSize=%d' % self.batch_size)
 
         if self.use_mean != 'none':
             filename = self.create_mean_file()
-            args.append('--mean=%s' % filename)
+            args.append(f'--mean={filename}')
 
         if hasattr(self.dataset, 'labels_file'):
-            args.append('--labels=%s' % self.dataset.path(self.dataset.labels_file))
+            args.append(f'--labels={self.dataset.path(self.dataset.labels_file)}')
 
         train_feature_db_path = self.dataset.get_feature_db_path(constants.TRAIN_DB)
         train_label_db_path = self.dataset.get_label_db_path(constants.TRAIN_DB)
         val_feature_db_path = self.dataset.get_feature_db_path(constants.VAL_DB)
         val_label_db_path = self.dataset.get_label_db_path(constants.VAL_DB)
 
-        args.append('--train=%s' % train_feature_db_path)
+        args.append(f'--train={train_feature_db_path}')
         if train_label_db_path:
-            args.append('--train_labels=%s' % train_label_db_path)
+            args.append(f'--train_labels={train_label_db_path}')
         if val_feature_db_path:
-            args.append('--validation=%s' % val_feature_db_path)
+            args.append(f'--validation={val_feature_db_path}')
         if val_label_db_path:
-            args.append('--validation_labels=%s' % val_label_db_path)
+            args.append(f'--validation_labels={val_label_db_path}')
 
         # learning rate policy input parameters
         if self.lr_policy['policy'] == 'fixed':
             pass
         elif self.lr_policy['policy'] == 'step':
-            args.append('--gamma=%s' % self.lr_policy['gamma'])
-            args.append('--stepvalues=%s' % self.lr_policy['stepsize'])
+            args.extend(
+                (
+                    f"--gamma={self.lr_policy['gamma']}",
+                    f"--stepvalues={self.lr_policy['stepsize']}",
+                )
+            )
         elif self.lr_policy['policy'] == 'multistep':
-            args.append('--stepvalues=%s' % self.lr_policy['stepvalue'])
-            args.append('--gamma=%s' % self.lr_policy['gamma'])
+            args.extend(
+                (
+                    f"--stepvalues={self.lr_policy['stepvalue']}",
+                    f"--gamma={self.lr_policy['gamma']}",
+                )
+            )
         elif self.lr_policy['policy'] == 'exp':
-            args.append('--gamma=%s' % self.lr_policy['gamma'])
+            args.append(f"--gamma={self.lr_policy['gamma']}")
         elif self.lr_policy['policy'] == 'inv':
-            args.append('--gamma=%s' % self.lr_policy['gamma'])
-            args.append('--power=%s' % self.lr_policy['power'])
+            args.extend(
+                (
+                    f"--gamma={self.lr_policy['gamma']}",
+                    f"--power={self.lr_policy['power']}",
+                )
+            )
         elif self.lr_policy['policy'] == 'poly':
-            args.append('--power=%s' % self.lr_policy['power'])
+            args.append(f"--power={self.lr_policy['power']}")
         elif self.lr_policy['policy'] == 'sigmoid':
-            args.append('--stepvalues=%s' % self.lr_policy['stepsize'])
-            args.append('--gamma=%s' % self.lr_policy['gamma'])
-
+            args.extend(
+                (
+                    f"--stepvalues={self.lr_policy['stepsize']}",
+                    f"--gamma={self.lr_policy['gamma']}",
+                )
+            )
         if self.shuffle:
             args.append('--shuffle=yes')
 
         if self.crop_size:
-            args.append('--crop=yes')
-            args.append('--croplen=%d' % self.crop_size)
-
+            args.extend(('--crop=yes', '--croplen=%d' % self.crop_size))
         if self.use_mean == 'pixel':
             args.append('--subtractMean=pixel')
         elif self.use_mean == 'image':
@@ -236,7 +252,7 @@ class TorchTrainTask(TrainTask):
             args.append('--subtractMean=none')
 
         if self.random_seed is not None:
-            args.append('--seed=%s' % self.random_seed)
+            args.append(f'--seed={self.random_seed}')
 
         if self.solver_type == 'SGD':
             args.append('--optimization=sgd')
@@ -251,15 +267,13 @@ class TorchTrainTask(TrainTask):
         elif self.solver_type == 'ADAM':
             args.append('--optimization=adam')
         else:
-            raise ValueError('Unknown solver_type %s' % self.solver_type)
+            raise ValueError(f'Unknown solver_type {self.solver_type}')
 
         if self.val_interval > 0:
-            args.append('--interval=%s' % self.val_interval)
+            args.append(f'--interval={self.val_interval}')
 
         if 'gpus' in resources:
-            identifiers = []
-            for identifier, value in resources['gpus']:
-                identifiers.append(identifier)
+            identifiers = [identifier for identifier, value in resources['gpus']]
             # make all selected GPUs visible to the Torch 'th' process.
             # don't make other GPUs visible though since Torch will load
             # CUDA libraries and allocate memory on all visible GPUs by
@@ -275,33 +289,34 @@ class TorchTrainTask(TrainTask):
             filenames = self.pretrained_model.split(os.path.pathsep)
             if len(filenames) > 1:
                 raise ValueError('Torch does not support multiple pretrained model files')
-            args.append('--weights=%s' % self.path(filenames[0]))
+            args.append(f'--weights={self.path(filenames[0])}')
 
         # Augmentations
         assert self.data_aug['flip'] in ['none', 'fliplr', 'flipud', 'fliplrud'], 'Bad or unknown flag "flip"'
-        args.append('--augFlip=%s' % self.data_aug['flip'])
+        args.append(f"--augFlip={self.data_aug['flip']}")
 
         assert self.data_aug['quad_rot'] in ['none', 'rot90', 'rot180', 'rotall'], 'Bad or unknown flag "quad_rot"'
-        args.append('--augQuadRot=%s' % self.data_aug['quad_rot'])
+        args.append(f"--augQuadRot={self.data_aug['quad_rot']}")
 
         if self.data_aug['rot']:
-            args.append('--augRot=%s' % self.data_aug['rot'])
+            args.append(f"--augRot={self.data_aug['rot']}")
 
         if self.data_aug['scale']:
-            args.append('--augScale=%s' % self.data_aug['scale'])
+            args.append(f"--augScale={self.data_aug['scale']}")
 
         if self.data_aug['noise']:
-            args.append('--augNoise=%s' % self.data_aug['noise'])
+            args.append(f"--augNoise={self.data_aug['noise']}")
 
         if self.data_aug['hsv_use']:
-            args.append('--augHSVh=%s' % self.data_aug['hsv_h'])
-            args.append('--augHSVs=%s' % self.data_aug['hsv_s'])
-            args.append('--augHSVv=%s' % self.data_aug['hsv_v'])
+            args.extend(
+                (
+                    f"--augHSVh={self.data_aug['hsv_h']}",
+                    f"--augHSVs={self.data_aug['hsv_s']}",
+                    f"--augHSVv={self.data_aug['hsv_v']}",
+                )
+            )
         else:
-            args.append('--augHSVh=0')
-            args.append('--augHSVs=0')
-            args.append('--augHSVv=0')
-
+            args.extend(('--augHSVh=0', '--augHSVs=0', '--augHSVv=0'))
         return args
 
     @override
@@ -335,13 +350,16 @@ class TorchTrainTask(TrainTask):
         # by default Lua prints infinite numbers as 'inf' however Torch tensor may use 'nan' to represent infinity
         float_exp = '([-]?inf|nan|[-+]?[0-9]*\.?[0-9]+(e[-+]?[0-9]+)?)'
 
-        # loss and learning rate updates
-        match = re.match(r'Training \(epoch (\d+\.?\d*)\): \w*loss\w* = %s, lr = %s' % (float_exp, float_exp), message)
-        if match:
+        if match := re.match(
+            r'Training \(epoch (\d+\.?\d*)\): \w*loss\w* = %s, lr = %s'
+            % (float_exp, float_exp),
+            message,
+        ):
             index = float(match.group(1))
             l = match.group(2)
-            assert not('inf' in l or 'nan' in l), \
-                'Network reported %s for training loss. Try decreasing your learning rate.' % l
+            assert (
+                'inf' not in l and 'nan' not in l
+            ), f'Network reported {l} for training loss. Try decreasing your learning rate.'
             l = float(l)
             lr = match.group(4)
             lr = float(lr)
@@ -354,10 +372,12 @@ class TorchTrainTask(TrainTask):
 
             return True
 
-        # testing loss and accuracy updates
-        match = re.match(r'Validation \(epoch (\d+\.?\d*)\): \w*loss\w* = %s(, accuracy = %s)?' %
-                         (float_exp, float_exp), message, flags=re.IGNORECASE)
-        if match:
+        if match := re.match(
+            r'Validation \(epoch (\d+\.?\d*)\): \w*loss\w* = %s(, accuracy = %s)?'
+            % (float_exp, float_exp),
+            message,
+            flags=re.IGNORECASE,
+        ):
             index = float(match.group(1))
             l = match.group(2)
             a = match.group(5)
@@ -365,15 +385,15 @@ class TorchTrainTask(TrainTask):
             # if the training loss is still finite, there is a slim possibility
             # that the network keeps learning something useful, so we don't treat
             # infinite validation loss as a fatal error
-            if not('inf' in l or 'nan' in l):
+            if 'inf' not in l and 'nan' not in l:
                 l = float(l)
-                self.logger.debug('Network validation loss #%s: %s' % (index, l))
+                self.logger.debug(f'Network validation loss #{index}: {l}')
                 # epoch updates
                 self.send_progress_update(index)
                 self.save_val_output('loss', 'SoftmaxWithLoss', l)
                 if a and a.lower() != 'inf' and a.lower() != '-inf':
                     a = float(a)
-                    self.logger.debug('Network accuracy #%s: %s' % (index, a))
+                    self.logger.debug(f'Network accuracy #{index}: {a}')
                     self.save_val_output('accuracy', 'Accuracy', a)
             return True
 
@@ -390,9 +410,7 @@ class TorchTrainTask(TrainTask):
             self.saving_snapshot = False
             return True
 
-        # snapshot starting
-        match = re.match(r'Snapshotting to (.*)\s*$', message)
-        if match:
+        if match := re.match(r'Snapshotting to (.*)\s*$', message):
             self.saving_snapshot = True
             return True
 
@@ -402,7 +420,7 @@ class TorchTrainTask(TrainTask):
             return True
 
         if level in ['error', 'critical']:
-            self.logger.error('%s: %s' % (self.name(), message))
+            self.logger.error(f'{self.name()}: {message}')
             self.exception = message
             return True
 
@@ -415,24 +433,25 @@ class TorchTrainTask(TrainTask):
         Takes line of output and parses it according to caffe's output format
         Returns (timestamp, level, message) or (None, None, None)
         """
-        # NOTE: This must change when the logging format changes
-        # LMMDD HH:MM:SS.MICROS pid file:lineno] message
-        match = re.match(r'(\d{4}-\d{2}-\d{2}\s\d{2}:\d{2}:\d{2})\s\[(\w+)\s*]\s+(\S.*)$', line)
-        if match:
-            timestamp = time.mktime(time.strptime(match.group(1), '%Y-%m-%d %H:%M:%S'))
-            level = match.group(2)
-            message = match.group(3)
-            if level == 'INFO':
-                level = 'info'
-            elif level == 'WARNING':
-                level = 'warning'
-            elif level == 'ERROR':
-                level = 'error'
-            elif level == 'FAIL':  # FAIL
-                level = 'critical'
-            return (timestamp, level, message)
-        else:
+        if not (
+            match := re.match(
+                r'(\d{4}-\d{2}-\d{2}\s\d{2}:\d{2}:\d{2})\s\[(\w+)\s*]\s+(\S.*)$',
+                line,
+            )
+        ):
             return (None, None, None)
+        timestamp = time.mktime(time.strptime(match.group(1), '%Y-%m-%d %H:%M:%S'))
+        level = match.group(2)
+        message = match.group(3)
+        if level == 'INFO':
+            level = 'info'
+        elif level == 'WARNING':
+            level = 'warning'
+        elif level == 'ERROR':
+            level = 'error'
+        elif level == 'FAIL':  # FAIL
+            level = 'critical'
+        return (timestamp, level, message)
 
     def send_snapshot_update(self):
         """
@@ -491,15 +510,16 @@ class TorchTrainTask(TrainTask):
         snapshots = []
 
         for filename in os.listdir(snapshot_dir):
-            # find models
-            match = re.match(r'%s_(\d+)\.?(\d*)(_Weights|_Model)\.t7' %
-                             os.path.basename(self.snapshot_prefix), filename)
-            if match:
+            if match := re.match(
+                r'%s_(\d+)\.?(\d*)(_Weights|_Model)\.t7'
+                % os.path.basename(self.snapshot_prefix),
+                filename,
+            ):
                 epoch = 0
                 if match.group(2) == '':
                     epoch = int(match.group(1))
                 else:
-                    epoch = float(match.group(1) + '.' + match.group(2))
+                    epoch = float(f'{match.group(1)}.{match.group(2)}')
                 snapshots.append((
                     os.path.join(snapshot_dir, filename),
                     epoch

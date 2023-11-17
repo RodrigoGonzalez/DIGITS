@@ -53,10 +53,7 @@ class GenericDatasetJob(DatasetJob):
         self.pickver_job_dataset_extension = PICKLE_VERSION
 
     def create_db_task(self, stage):
-        for t in self.tasks:
-            if t.stage == stage:
-                return t
-        return None
+        return next((t for t in self.tasks if t.stage == stage), None)
 
     def create_db_tasks(self):
         return self.tasks

@@ -39,14 +39,13 @@ def show(job_id):
 
     if request_wants_json():
         return flask.jsonify(job.json_dict(True))
+    if isinstance(job, model_images.ImageClassificationModelJob):
+        return model_images.classification.views.show(job, related_jobs=related_jobs)
+    elif isinstance(job, model_images.GenericImageModelJob):
+        return model_images.generic.views.show(job, related_jobs=related_jobs)
     else:
-        if isinstance(job, model_images.ImageClassificationModelJob):
-            return model_images.classification.views.show(job, related_jobs=related_jobs)
-        elif isinstance(job, model_images.GenericImageModelJob):
-            return model_images.generic.views.show(job, related_jobs=related_jobs)
-        else:
-            raise werkzeug.exceptions.BadRequest(
-                'Invalid job type')
+        raise werkzeug.exceptions.BadRequest(
+            'Invalid job type')
 
 
 @blueprint.route('/customize', methods=['POST'])
@@ -61,9 +60,7 @@ def customize():
 
     fw = frameworks.get_framework_by_id(framework)
 
-    # can we find it in standard networks?
-    network_desc = fw.get_standard_network_desc(network)
-    if network_desc:
+    if network_desc := fw.get_standard_network_desc(network):
         return json.dumps({'network': network_desc})
 
     # not found in standard networks, looking for matching job
@@ -73,12 +70,9 @@ def customize():
 
     snapshot = None
     epoch = float(flask.request.form.get('snapshot_epoch', 0))
-    if epoch == 0:
-        pass
-    elif epoch == -1:
+    if epoch == -1:
         snapshot = job.train_task().pretrained_model
-    else:
-
+    elif epoch != 0:
         for filename, e in job.train_task().snapshots:
             if e == epoch:
                 snapshot = job.path(filename)
@@ -107,7 +101,7 @@ def view_config(extension_id):
     """
     extension = extensions.view.get_extension(extension_id)
     if extension is None:
-        raise ValueError("Unknown extension '%s'" % extension_id)
+        raise ValueError(f"Unknown extension '{extension_id}'")
     config_form = extension.get_config_form()
     template, context = extension.get_config_template(config_form)
     return flask.render_template_string(template, **context)
@@ -123,9 +117,7 @@ def visualize_network():
         raise werkzeug.exceptions.BadRequest('framework not provided')
 
     fw = frameworks.get_framework_by_id(framework)
-    ret = fw.get_network_visualization(flask.request.form['custom_network'])
-
-    return ret
+    return fw.get_network_visualization(flask.request.form['custom_network'])
 
 
 @blueprint.route('/visualize-lr', methods=['POST'])
@@ -136,25 +128,25 @@ def visualize_lr():
     policy = flask.request.form['lr_policy']
     # There may be multiple lrs if the learning_rate is swept
     lrs = map(float, flask.request.form['learning_rate'].split(','))
-    if policy == 'fixed':
+    if policy == 'exp':
+        gamma = float(flask.request.form['lr_exp_gamma'])
+    elif policy == 'fixed':
         pass
-    elif policy == 'step':
-        step = float(flask.request.form['lr_step_size'])
-        gamma = float(flask.request.form['lr_step_gamma'])
+    elif policy == 'inv':
+        gamma = float(flask.request.form['lr_inv_gamma'])
+        power = float(flask.request.form['lr_inv_power'])
     elif policy == 'multistep':
         steps = [float(s) for s in flask.request.form['lr_multistep_values'].split(',')]
         current_step = 0
         gamma = float(flask.request.form['lr_multistep_gamma'])
-    elif policy == 'exp':
-        gamma = float(flask.request.form['lr_exp_gamma'])
-    elif policy == 'inv':
-        gamma = float(flask.request.form['lr_inv_gamma'])
-        power = float(flask.request.form['lr_inv_power'])
     elif policy == 'poly':
         power = float(flask.request.form['lr_poly_power'])
     elif policy == 'sigmoid':
         step = float(flask.request.form['lr_sigmoid_step'])
         gamma = float(flask.request.form['lr_sigmoid_gamma'])
+    elif policy == 'step':
+        step = float(flask.request.form['lr_step_size'])
+        gamma = float(flask.request.form['lr_step_gamma'])
     else:
         raise werkzeug.exceptions.BadRequest('Invalid policy')
 
@@ -273,7 +265,7 @@ def download(job_id, extension):
             mode = 'gz'
         elif extension in ['tar.bz2']:
             mode = 'bz2'
-        with tarfile.open(fileobj=b, mode='w:%s' % mode) as tf:
+        with tarfile.open(fileobj=b, mode=f'w:{mode}') as tf:
             for path, name in job.download_files(epoch):
                 tf.add(path, arcname=name)
             tf_info = tarfile.TarInfo("info.json")
@@ -289,7 +281,9 @@ def download(job_id, extension):
         raise werkzeug.exceptions.BadRequest('Invalid extension')
 
     response = flask.make_response(b.getvalue())
-    response.headers['Content-Disposition'] = 'attachment; filename=%s_epoch_%s.%s' % (job.id(), epoch, extension)
+    response.headers[
+        'Content-Disposition'
+    ] = f'attachment; filename={job.id()}_epoch_{epoch}.{extension}'
     return response
 
 
@@ -311,10 +305,7 @@ class ColumnType(object):
         self.find_from_list = find_fn
 
     def label(self, attr):
-        if self.has_suffix:
-            return '{} {}'.format(attr, self.name)
-        else:
-            return attr
+        return f'{attr} {self.name}' if self.has_suffix else attr
 
 
 def get_column_attrs():

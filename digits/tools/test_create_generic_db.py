@@ -26,7 +26,7 @@ class BaseTest(object):
     @classmethod
     def setUpClass(cls):
         if extensions.data.get_extension(cls.EXTENSION_ID) is None:
-            raise unittest.SkipTest('Extension "%s" is not installed' % cls.EXTENSION_ID)
+            raise unittest.SkipTest(f'Extension "{cls.EXTENSION_ID}" is not installed')
         cls.dataset_dir = tempfile.mkdtemp()
         cls.extension_class = extensions.data.get_extension(cls.EXTENSION_ID)
         cls.extension = cls.extension_class(**cls.EXTENSION_PARAMS)

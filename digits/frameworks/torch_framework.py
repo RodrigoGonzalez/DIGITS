@@ -61,15 +61,14 @@ class TorchFramework(Framework):
         networks_dir = os.path.join(os.path.dirname(digits.__file__), 'standard-networks', self.CLASS)
 
         # Torch's GoogLeNet and AlexNet models are placed in sub folder
-        if (network == "alexnet" or network == "googlenet"):
+        if network in ["alexnet", "googlenet"]:
             networks_dir = os.path.join(networks_dir, 'ImageNet-Training')
 
         for filename in os.listdir(networks_dir):
             path = os.path.join(networks_dir, filename)
             if os.path.isfile(path):
                 match = None
-                match = re.match(r'%s.lua' % network, filename)
-                if match:
+                if match := re.match(f'{network}.lua', filename):
                     with open(path) as infile:
                         return infile.read()
         # return None if not found
@@ -128,14 +127,17 @@ class TorchFramework(Framework):
             # build command line
             torch_bin = config_value('torch')['executable']
 
-            args = [torch_bin,
-                    os.path.join(os.path.dirname(digits.__file__), 'tools', 'torch', 'main.lua'),
-                    '--network=%s' % os.path.splitext(os.path.basename(temp_network_path))[0],
-                    '--networkDirectory=%s' % os.path.dirname(temp_network_path),
-                    '--subtractMean=none',  # we are not providing a mean image
-                    '--visualizeModel=yes',
-                    '--type=float'
-                    ]
+            args = [
+                torch_bin,
+                os.path.join(
+                    os.path.dirname(digits.__file__), 'tools', 'torch', 'main.lua'
+                ),
+                f'--network={os.path.splitext(os.path.basename(temp_network_path))[0]}',
+                f'--networkDirectory={os.path.dirname(temp_network_path)}',
+                '--subtractMean=none',
+                '--visualizeModel=yes',
+                '--type=float',
+            ]
 
             # execute command
             p = subprocess.Popen(args,
@@ -164,22 +166,20 @@ class TorchFramework(Framework):
                         if message:
                             if message.startswith('Network definition'):
                                 collecting_net_definition = not collecting_net_definition
-                        else:
-                            if collecting_net_definition:
-                                desc.append(line)
-                            elif len(line):
-                                unrecognized_output.append(line)
+                        elif collecting_net_definition:
+                            desc.append(line)
+                        elif len(line):
+                            unrecognized_output.append(line)
                     else:
                         time.sleep(0.05)
 
             if not len(desc):
                 # we did not find a network description
                 raise NetworkVisualizationError(''.join(unrecognized_output))
-            else:
-                output = flask.Markup('<pre>')
-                for line in desc:
-                    output += flask.Markup.escape(line)
-                output += flask.Markup('</pre>')
-                return output
+            output = flask.Markup('<pre>')
+            for line in desc:
+                output += flask.Markup.escape(line)
+            output += flask.Markup('</pre>')
+            return output
         finally:
             os.remove(temp_network_path)

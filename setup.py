@@ -15,7 +15,7 @@ requirements = []
 with open(os.path.join(LOCAL_DIR, 'requirements.txt'), 'r') as infile:
     for line in infile:
         line = line.strip()
-        if line and not line[0] == '#':  # ignore comments
+        if line and line[0] != '#':  # ignore comments
             requirements.append(line)
 
 # Get test requirements
@@ -23,7 +23,7 @@ test_requirements = []
 with open(os.path.join(LOCAL_DIR, 'requirements_test.txt'), 'r') as infile:
     for line in infile:
         line = line.strip()
-        if line and not line[0] == '#':  # ignore comments
+        if line and line[0] != '#':  # ignore comments
             test_requirements.append(line)
 
 setuptools.setup(

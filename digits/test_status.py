@@ -49,10 +49,10 @@ class TestStatus():
         # Testing __eq__
         assert (s == Status.INIT), 'should be true.'
         assert (s == 'I'), 'should be true.'
-        assert not (s == 7), 'should be false.'
+        assert s != 7, 'should be false.'
 
-        assert not (s != Status.INIT), 'should be false.'
-        assert not (s != 'I'), 'should be false.'
+        assert s == Status.INIT, 'should be false.'
+        assert s == 'I', 'should be false.'
         assert (s != 7), 'should be true.'
 
     def test_pickle(self):

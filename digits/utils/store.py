@@ -31,7 +31,7 @@ class StoreParser(HTMLParser):
     def __init__(self):
         HTMLParser.__init__(self)
         self.starting = False
-        self.dirs = list()
+        self.dirs = []
         self.reset()
 
     def read(self, data):
@@ -43,11 +43,11 @@ class StoreParser(HTMLParser):
         pass
 
     def handle_starttag(self, tag, attrs):
-        if tag == 'td' or tag == 'a':
+        if tag in ['td', 'a']:
             self.starting = True
 
     def handle_endtag(self, tag):
-        if tag == 'td' or tag == 'a':
+        if tag in ['td', 'a']:
             self.starting = False
 
     def handle_data(self, data):

@@ -23,8 +23,9 @@ class TestVersion():
     def check_version(self, version):
         standard_match = re.match(self.STANDARD_SEMVER_REGEX, version)
         dev_match = re.match(self.DEV_REGEX, version)
-        assert (standard_match is not None or dev_match is not None), \
-            'Version string "%s" is ill-formatted' % version
+        assert (
+            standard_match is not None or dev_match is not None
+        ), f'Version string "{version}" is ill-formatted'
 
     def test_package_version(self):
         import digits

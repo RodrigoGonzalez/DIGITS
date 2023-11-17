@@ -114,7 +114,7 @@ class Visualization(VisualizationInterface):
 
         # create arrays in expected format
         keys = inference_data.keys()
-        bboxes = dict(zip(keys, [[] for x in range(0, len(keys))]))
+        bboxes = dict(zip(keys, [[] for _ in range(0, len(keys))]))
         for key, outputs in inference_data.items():
             # last number is confidence
             bboxes[key] = [list(o) for o in outputs if o[-1] > 0]

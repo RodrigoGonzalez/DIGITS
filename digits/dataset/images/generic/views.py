@@ -57,9 +57,7 @@ def create():
             mean_file=form.prebuilt_mean_file.data.strip(),
         )
 
-        if form.method.data == 'prebuilt':
-            pass
-        else:
+        if form.method.data != 'prebuilt':
             raise ValueError('method not supported')
 
         force_same_shape = form.force_same_shape.data

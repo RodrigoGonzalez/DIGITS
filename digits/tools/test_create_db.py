@@ -43,7 +43,7 @@ class BaseTest():
 
         cls.image_count = 0
         for i in xrange(3):
-            for j in xrange(3):
+            for _ in xrange(3):
                 os.write(cls.good_file[0], '%s %s\n' % (cls.color_image_file[1], i))
                 os.write(cls.good_file[0], '%s %s\n' % (cls.gray_image_file[1], i))
                 cls.image_count += 2
@@ -225,9 +225,10 @@ class BaseCreationTest(BaseTest):
                             10, 10, 1, self.BACKEND, shuffle=False)
 
     def test_means(self):
-        mean_files = []
-        for suffix in 'jpg', 'npy', 'png', 'binaryproto':
-            mean_files.append(os.path.join(self.empty_dir, 'mean.%s' % suffix))
+        mean_files = [
+            os.path.join(self.empty_dir, f'mean.{suffix}')
+            for suffix in ('jpg', 'npy', 'png', 'binaryproto')
+        ]
         create_db.create_db(self.good_file[1], os.path.join(self.empty_dir, 'db'),
                             10, 10, 1, self.BACKEND, mean_files=mean_files)
 

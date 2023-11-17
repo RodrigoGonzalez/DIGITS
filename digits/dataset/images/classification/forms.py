@@ -25,11 +25,11 @@ class ImageClassificationDatasetForm(ImageDatasetForm):
                                   default='lmdb',
                                   )
 
-    def validate_backend(form, field):
+    def validate_backend(self, field):
         if field.data == 'lmdb':
-            form.compression.data = 'none'
+            self.compression.data = 'none'
         elif field.data == 'hdf5':
-            form.encoding.data = 'none'
+            self.encoding.data = 'none'
 
     compression = utils.forms.SelectField(
         'DB compression',
@@ -52,7 +52,7 @@ class ImageClassificationDatasetForm(ImageDatasetForm):
                                  default='folder',
                                  )
 
-    def validate_folder_path(form, field):
+    def validate_folder_path(self, field):
         if not field.data:
             pass
         elif utils.is_url(field.data):
@@ -64,18 +64,17 @@ class ImageClassificationDatasetForm(ImageDatasetForm):
                 if r.status_code not in [requests.codes.ok, requests.codes.moved, requests.codes.found]:
                     raise validators.ValidationError('URL not found')
             except Exception as e:
-                raise validators.ValidationError('Caught %s while checking URL: %s' % (type(e).__name__, e))
+                raise validators.ValidationError(
+                    f'Caught {type(e).__name__} while checking URL: {e}'
+                )
             else:
                 return True
+        elif not os.path.exists(field.data) or not os.path.isdir(field.data):
+            raise validators.ValidationError('Folder does not exist')
+        elif not os.path.isabs(field.data):
+            raise validators.ValidationError('Filesystem path is not absolute')
         else:
-            # make sure the filesystem path exists
-            # and make sure the filesystem path is absolute
-            if not os.path.exists(field.data) or not os.path.isdir(field.data):
-                raise validators.ValidationError('Folder does not exist')
-            elif not os.path.isabs(field.data):
-                raise validators.ValidationError('Filesystem path is not absolute')
-            else:
-                return True
+            return True
 
     #
     # Method - folder
@@ -248,8 +247,8 @@ class ImageClassificationDatasetForm(ImageDatasetForm):
 
     textfile_train_folder = wtforms.StringField(u'Training images folder')
 
-    def validate_textfile_train_folder(form, field):
-        if form.method.data != 'textfile':
+    def validate_textfile_train_folder(self, field):
+        if self.method.data != 'textfile':
             field.errors[:] = []
             raise validators.StopValidation()
         if not field.data.strip():
@@ -283,8 +282,8 @@ class ImageClassificationDatasetForm(ImageDatasetForm):
                                                     )
     textfile_val_folder = wtforms.StringField(u'Validation images folder')
 
-    def validate_textfile_val_folder(form, field):
-        if form.method.data != 'textfile' or not form.textfile_use_val.data:
+    def validate_textfile_val_folder(self, field):
+        if self.method.data != 'textfile' or not self.textfile_use_val.data:
             field.errors[:] = []
             raise validators.StopValidation()
         if not field.data.strip():
@@ -318,8 +317,8 @@ class ImageClassificationDatasetForm(ImageDatasetForm):
                                                      )
     textfile_test_folder = wtforms.StringField(u'Test images folder')
 
-    def validate_textfile_test_folder(form, field):
-        if form.method.data != 'textfile' or not form.textfile_use_test.data:
+    def validate_textfile_test_folder(self, field):
+        if self.method.data != 'textfile' or not self.textfile_use_test.data:
             field.errors[:] = []
             raise validators.StopValidation()
         if not field.data.strip():

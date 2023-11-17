@@ -54,10 +54,7 @@ class Resource(object):
         identifier -- some way to identify this resource
         max_value -- a numeric representation of the capacity of this resource
         """
-        if identifier is None:
-            self.identifier = id(self)
-        else:
-            self.identifier = identifier
+        self.identifier = id(self) if identifier is None else identifier
         self.max_value = max_value
         self.allocations = []
 
@@ -72,9 +69,8 @@ class Resource(object):
         A task is requesting to use this resource
         """
         if self.remaining() - value < 0:
-            raise RuntimeError('Resource is already maxed out at %s/%s' % (
-                self.remaining(),
-                self.max_value)
+            raise RuntimeError(
+                f'Resource is already maxed out at {self.remaining()}/{self.max_value}'
             )
         self.allocations.append(self.ResourceAllocation(task, value))
 
@@ -146,7 +142,7 @@ class Scheduler:
 
         # add DatasetJobs or PretrainedModelJobs
         for job in loaded_jobs:
-            if isinstance(job, DatasetJob) or isinstance(job, PretrainedModelJob):
+            if isinstance(job, (DatasetJob, PretrainedModelJob)):
                 self.jobs[job.id()] = job
 
         # add ModelJobs
@@ -165,7 +161,7 @@ class Scheduler:
             logger.warning('Failed to load %d jobs.' % len(failed_jobs))
             if self.verbose:
                 for job_id, e in failed_jobs:
-                    logger.debug('%s - %s: %s' % (job_id, type(e).__name__, str(e)))
+                    logger.debug(f'{job_id} - {type(e).__name__}: {str(e)}')
 
     def add_job(self, job):
         """
@@ -202,9 +198,7 @@ class Scheduler:
         Look through self.jobs to try to find the Job
         Returns None if not found
         """
-        if job_id is None:
-            return None
-        return self.jobs.get(job_id, None)
+        return None if job_id is None else self.jobs.get(job_id, None)
 
     def get_related_jobs(self, job):
         """
@@ -219,7 +213,7 @@ class Scheduler:
         elif isinstance(job, DatasetJob):
             datajob = job
         else:
-            raise ValueError("Unhandled job type %s" % job.job_type())
+            raise ValueError(f"Unhandled job type {job.job_type()}")
 
         for j in self.jobs.values():
             # Any model that shares (this/the same) dataset should be added too:
@@ -247,30 +241,33 @@ class Scheduler:
         Deletes an entire job folder from disk
         Returns True if the Job was found and deleted
         """
-        if isinstance(job, str) or isinstance(job, unicode):
+        if isinstance(job, (str, unicode)):
             job_id = str(job)
         elif isinstance(job, Job):
             job_id = job.id()
         else:
-            raise ValueError('called delete_job with a %s' % type(job))
+            raise ValueError(f'called delete_job with a {type(job)}')
         dependent_jobs = []
-        # try to find the job
-        job = self.jobs.get(job_id, None)
-        if job:
+        if job := self.jobs.get(job_id, None):
             if isinstance(job, DatasetJob):
                 # check for dependencies
                 for j in self.jobs.values():
                     if isinstance(j, ModelJob) and j.dataset_id == job.id():
-                        logger.error('Cannot delete "%s" (%s) because "%s" (%s) depends on it.' %
-                                     (job.name(), job.id(), j.name(), j.id()))
+                        logger.error(
+                            f'Cannot delete "{job.name()}" ({job.id()}) because "{j.name()}" ({j.id()}) depends on it.'
+                        )
                         dependent_jobs.append(j.name())
-            if len(dependent_jobs) > 0:
-                error_message = 'Cannot delete "%s" because %d model%s depend%s on it: %s' % (
-                    job.name(),
-                    len(dependent_jobs),
-                    ('s' if len(dependent_jobs) != 1 else ''),
-                    ('s' if len(dependent_jobs) == 1 else ''),
-                    ', '.join(['"%s"' % j for j in dependent_jobs]))
+            if dependent_jobs:
+                error_message = (
+                    'Cannot delete "%s" because %d model%s depend%s on it: %s'
+                    % (
+                        job.name(),
+                        len(dependent_jobs),
+                        's' if len(dependent_jobs) != 1 else '',
+                        's' if len(dependent_jobs) == 1 else '',
+                        ', '.join([f'"{j}"' for j in dependent_jobs]),
+                    )
+                )
                 raise errors.DeleteError(error_message)
             self.jobs.pop(job_id, None)
             job.abort()
@@ -456,7 +453,7 @@ class Scheduler:
         """
         Handle an error while executing a task
         """
-        logger.error('%s: %s' % (type(error).__name__, error), job_id=task.job_id)
+        logger.error(f'{type(error).__name__}: {error}', job_id=task.job_id)
         task.exception = error
         task.traceback = traceback.format_exc()
         task.status = Status.ERROR
@@ -477,8 +474,9 @@ class Scheduler:
                             found = True
                             break
                     if not found:
-                        raise RuntimeError('Resource "%s" with identifier="%s" not found' % (
-                            resource_type, identifier))
+                        raise RuntimeError(
+                            f'Resource "{resource_type}" with identifier="{identifier}" not found'
+                        )
             task.current_resources = resources
             return True
         except Exception as e:

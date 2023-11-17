@@ -87,19 +87,19 @@ class DataIngestion(DataIngestionInterface):
             img = img[np.newaxis, :, :]
             if img.dtype == 'uint16':
                 img = img.astype(float)
-        else:
-            if img.ndim != 3 or img.shape[2] != 3:
-                raise ValueError("Unsupported image shape: %s" % repr(img.shape))
+        elif img.ndim == 3 and img.shape[2] == 3:
             # HWC -> CHW
             img = img.transpose(2, 0, 1)
 
+        else:
+            raise ValueError(f"Unsupported image shape: {repr(img.shape)}")
         # (2) label part
 
         # make sure label exists
         label_id = os.path.splitext(os.path.basename(entry))[0]
 
         if label_id not in self.datasrc_annotation_dict:
-            raise ValueError("Label key %s not found in label folder" % label_id)
+            raise ValueError(f"Label key {label_id} not found in label folder")
         annotations = self.datasrc_annotation_dict[label_id]
 
         # collect bbox list into bboxList
@@ -195,7 +195,7 @@ class DataIngestion(DataIngestionInterface):
                 # no validation folder was specified
                 return []
         else:
-            raise ValueError("Unknown stage: %s" % stage)
+            raise ValueError(f"Unknown stage: {stage}")
 
     def load_ground_truth(self, folder, min_box_size=None):
         """
@@ -208,12 +208,11 @@ class DataIngestion(DataIngestionInterface):
         datasrc.load_gt_obj()
         self.datasrc_annotation_dict = datasrc.objects_all
 
-        scene_files = []
-        for key in self.datasrc_annotation_dict:
-            scene_files.append(key)
-
+        scene_files = list(self.datasrc_annotation_dict)
         # determine largest label height:
-        self.max_bboxes = max([len(annotation) for annotation in self.datasrc_annotation_dict.values()])
+        self.max_bboxes = max(
+            len(annotation) for annotation in self.datasrc_annotation_dict.values()
+        )
 
     def make_image_list(self, folder):
         """
@@ -221,11 +220,15 @@ class DataIngestion(DataIngestionInterface):
         """
         image_files = []
         for dirpath, dirnames, filenames in os.walk(folder, followlinks=True):
-            for filename in filenames:
-                if filename.lower().endswith(digits.utils.image.SUPPORTED_EXTENSIONS):
-                    image_files.append('%s' % os.path.join(dirpath, filename))
-        if len(image_files) == 0:
-            raise ValueError("Unable to find supported images in %s" % folder)
+            image_files.extend(
+                f'{os.path.join(dirpath, filename)}'
+                for filename in filenames
+                if filename.lower().endswith(
+                    digits.utils.image.SUPPORTED_EXTENSIONS
+                )
+            )
+        if not image_files:
+            raise ValueError(f"Unable to find supported images in {folder}")
         # shuffle
         random.shuffle(image_files)
         return image_files

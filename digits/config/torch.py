@@ -33,13 +33,15 @@ def find_executable(path=None):
 if 'TORCH_ROOT' in os.environ:
     executable = find_executable(os.environ['TORCH_ROOT'])
     if executable is None:
-        raise ValueError('Torch executable not found at "%s" (TORCH_ROOT)'
-                         % os.environ['TORCH_ROOT'])
+        raise ValueError(
+            f"""Torch executable not found at "{os.environ['TORCH_ROOT']}" (TORCH_ROOT)"""
+        )
 elif 'TORCH_HOME' in os.environ:
     executable = find_executable(os.environ['TORCH_HOME'])
     if executable is None:
-        raise ValueError('Torch executable not found at "%s" (TORCH_HOME)'
-                         % os.environ['TORCH_HOME'])
+        raise ValueError(
+            f"""Torch executable not found at "{os.environ['TORCH_HOME']}" (TORCH_HOME)"""
+        )
 else:
     executable = find_executable()
 
